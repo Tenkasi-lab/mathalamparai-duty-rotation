@@ -61,13 +61,11 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 
     if idx < staff_count:
         point_assignments["9. A BLOCK"] = guard_candidates[idx]['name']; idx += 1
-    else:
-        point_assignments["9. A BLOCK"] = "VACANT"
+    else: point_assignments["9. A BLOCK"] = "VACANT"
 
     if idx < staff_count:
         point_assignments["3. SECOND GATE"] = guard_candidates[idx]['name']; idx += 1
-    else:
-        point_assignments["3. SECOND GATE"] = "VACANT"
+    else: point_assignments["3. SECOND GATE"] = "VACANT"
 
     rotation = []
     for point in regular_duty_points:
@@ -78,65 +76,53 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 # --- UI Setup ---
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
-# --- PREMIUM BACKGROUND & COLOR CSS ---
+# PRINT SCRIPT & PREMIUM CSS
 st.markdown("""
     <style>
-    /* Full Page Background */
-    .stApp {
-        background: #f1f5f9; /* Soft Slate Grey/Blue background */
-    }
-    
-    /* Sidebar Design */
-    [data-testid="stSidebar"] {
-        background-color: #0f172a !important;
-        color: white;
-    }
-
-    /* Shift Headers with Gradients */
+    .stApp { background: #f1f5f9; }
+    [data-testid="stSidebar"] { background-color: #0f172a !important; color: white; }
     .shift-header {
-        padding: 20px;
-        border-radius: 12px;
-        margin: 25px 0px 15px 0px;
-        color: white;
-        font-weight: 800;
-        text-align: center;
-        font-size: 26px;
-        letter-spacing: 1px;
+        padding: 20px; border-radius: 12px; margin: 25px 0px 15px 0px;
+        color: white; font-weight: 800; text-align: center; font-size: 26px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.15);
     }
     .shift-a { background: linear-gradient(135deg, #dc2626, #f87171); }
     .shift-b { background: linear-gradient(135deg, #2563eb, #60a5fa); }
     .shift-c { background: linear-gradient(135deg, #059669, #34d399); }
+    .info-card { background-color: white; padding: 18px; border-radius: 12px; border-top: 4px solid #4f46e5; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 10px; }
     
-    /* Content Cards */
-    .info-card {
-        background-color: white;
-        padding: 18px;
-        border-radius: 12px;
-        border-top: 4px solid #4f46e5;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        margin-bottom: 10px;
+    /* PRINT BUTTON STYLE */
+    .print-btn {
+        background-color: #4f46e5; color: white; padding: 10px 20px;
+        border-radius: 8px; cursor: pointer; border: none; font-weight: bold;
     }
-    
-    h1 { color: #1e293b; text-align: center; font-weight: 800; }
-    
+
     @media print {
-        .stButton, .stSidebar, footer, header {display: none !important;}
+        .stButton, .stSidebar, footer, header, .no-print {display: none !important;}
         .main {margin: 0 !important; padding: 0 !important; background: white !important;}
         .stApp {background: white !important;}
+        .stMarkdown {margin: 0 !important;}
     }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🛡️ Mathalamparai Duty System")
 
-# Sidebar Controls
+# Sidebar
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
 is_weekend = selected_date.weekday() >= 5 
 target_shift = st.sidebar.selectbox("Select Shift to View", ["All Shifts", "A Shift", "B Shift", "C Shift"])
 
-if st.button(f'🚀 Generate Rotation'):
+# BUTTONS SECTION
+col1, col2 = st.columns([1, 1])
+with col1:
+    gen_btn = st.button(f'🚀 Generate Rotation')
+with col2:
+    # PRINT BUTTON INJECTION
+    st.markdown('<button class="print-btn" onclick="window.print()">🖨️ Print to PDF</button>', unsafe_allow_html=True)
+
+if gen_btn:
     try:
         df_raw = pd.read_csv(url, header=None)
         date_col_idx = None
@@ -179,7 +165,6 @@ if st.button(f'🚀 Generate Rotation'):
             for s in display_list:
                 if not shift_data[s]: continue
                 
-                # Colourful Shift Header
                 color_class = f"shift-{s.lower()}"
                 st.markdown(f'<div class="shift-header {color_class}">📅 {s} SHIFT - {selected_date.strftime("%d-%b-%Y")}</div>', unsafe_allow_html=True)
                 
@@ -191,20 +176,10 @@ if st.button(f'🚀 Generate Rotation'):
                     st.markdown('<div class="info-card"><b>🛎️ Receptionist</b></div>', unsafe_allow_html=True)
                     for r in rec: st.info(r)
                 with c2:
-                    # White background for the table area
                     st.data_editor(
                         pd.DataFrame(rot),
-                        column_config={
-                            "Staff Name": st.column_config.SelectboxColumn(
-                                "Staff Name",
-                                options=dropdown_options,
-                                width="large",
-                                required=True
-                            )
-                        },
-                        hide_index=True,
-                        use_container_width=True,
-                        key=f"editor_{s}"
+                        column_config={"Staff Name": st.column_config.SelectboxColumn("Staff Name", options=dropdown_options, width="large", required=True)},
+                        hide_index=True, use_container_width=True, key=f"editor_{s}"
                     )
                 with c3:
                     st.markdown('<div class="info-card"><b>🏥 Wellness</b></div>', unsafe_allow_html=True)
