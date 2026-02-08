@@ -16,33 +16,35 @@ duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PAR
 def generate_shift_rotation(staff_list, is_weekend):
     if not staff_list: return [], []
     
-    current_receptionists = [name for name in staff_list if name in receptionists_pool]
-    current_guards = [name for name in staff_list if name not in receptionists_pool]
+    # Cleaning names (removing extra spaces)
+    staff_list = [name.strip().upper() for name in staff_list]
     
-    # Reception Logic: Weekend (Sat/Sun) = 1, Weekdays = 2
+    current_receptionists = [name for name in staff_list if any(r in name for r in receptionists_pool)]
+    current_guards = [name for name in staff_list if not any(r in name for r in receptionists_pool)]
+    
     needed_reception = 1 if is_weekend else 2
     
+    # Reception Assignment
     if len(current_receptionists) >= needed_reception:
         reception = random.sample(current_receptionists, needed_reception)
     else:
-        reception = current_receptionists + random.sample(current_guards, min(needed_reception - len(current_receptionists), len(current_guards))) if current_guards else []
+        reception = current_receptionists + random.sample(current_guards, min(needed_reception - len(current_receptionists), len(current_guards)))
     
-    # Guard Rotation
-    remaining_guards = [g for g in current_guards if g not in reception]
-    random.shuffle(remaining_guards)
+    # IMPORTANT: All unused staff (including receptionists not picked) go to Guard Duty
+    remaining_staff = [s for s in staff_list if s not in reception]
+    random.shuffle(remaining_staff)
     
     rotation = []
     for i, point in enumerate(duty_points):
-        name = remaining_guards[i] if i < len(remaining_guards) else "OFF / BUFFER"
+        name = remaining_staff[i] if i < len(remaining_staff) else "OFF / BUFFER"
         rotation.append({"Point": point, "Staff Name": name})
     return rotation, reception
 
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
-st.title("🛡️ Mathalamparai Duty Rotation (With Weekend Logic)")
+st.title("🛡️ Mathalamparai Duty Rotation")
 
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
-# Check if selected date is Saturday (5) or Sunday (6)
 is_weekend = selected_date.weekday() >= 5 
 
 if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
@@ -58,7 +60,7 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
 
         if date_col_idx is not None:
             shift_data = {"A": [], "B": [], "C": []}
-            for i in range(4, 50):
+            for i in range(4, 52): # Rows A5 to A52
                 if i < len(df_raw):
                     name = str(df_raw.iloc[i, 1]).strip().upper()
                     shift_val = str(df_raw.iloc[i, date_col_idx]).strip().upper()
@@ -67,9 +69,8 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
 
             for s in ["A", "B", "C"]:
                 st.divider()
-                st.header(f"📅 {s} SHIFT {'(Weekend Mode)' if is_weekend else ''}")
+                st.header(f"📅 {s} SHIFT")
                 rot, rec = generate_shift_rotation(shift_data[s], is_weekend)
-                
                 c1, c2 = st.columns([1, 3])
                 with c1:
                     st.subheader("🛎️ Reception")
@@ -77,7 +78,5 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                 with c2:
                     st.subheader("📍 Duty Points")
                     st.table(pd.DataFrame(rot))
-        else:
-            st.error("Date column not found!")
     except Exception as e:
         st.error(f"Error: {e}")
