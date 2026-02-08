@@ -14,7 +14,6 @@ receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "M
 wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
 supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
 
-# Neenga sonna athe Fixed Sequence
 regular_duty_points = [
     "1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", 
     "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", 
@@ -23,16 +22,11 @@ regular_duty_points = [
 
 def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
     if not staff_with_ids: return [], [], "NOT ASSIGNED"
-    
-    # 1. Maintain Permanent Order
     staff_with_ids.sort(key=lambda x: x['id'])
-    
-    # 2. Date-based Sequential Rotation
     day_val = selected_date.day
     shift_amt = day_val % len(staff_with_ids)
     rotated_pool = staff_with_ids[shift_amt:] + staff_with_ids[:shift_amt]
     
-    # 3. Specialist Logic
     wellness_person = None
     wellness_candidates = [s for s in rotated_pool if any(sp in s['name'] for sp in wellness_specialists)]
     if wellness_candidates:
@@ -54,10 +48,8 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
         else:
             guard_candidates.append(s)
             
-    # 4. Sequential Assignment to 1-12 Points
     point_assignments = {}
     staff_count = len(guard_candidates)
-    
     essential_points = [p for p in regular_duty_points if p not in ["3. SECOND GATE", "9. A BLOCK"]]
     
     idx = 0
@@ -65,19 +57,15 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
         if idx < staff_count:
             point_assignments[point] = guard_candidates[idx]['name']
             idx += 1
-        else:
-            point_assignments[point] = "OFF / BUFFER"
+        else: point_assignments[point] = "OFF / BUFFER"
 
-    # Vacant Priority Logic
     if idx < staff_count:
         point_assignments["9. A BLOCK"] = guard_candidates[idx]['name']; idx += 1
-    else:
-        point_assignments["9. A BLOCK"] = "VACANT"
+    else: point_assignments["9. A BLOCK"] = "VACANT"
 
     if idx < staff_count:
         point_assignments["3. SECOND GATE"] = guard_candidates[idx]['name']; idx += 1
-    else:
-        point_assignments["3. SECOND GATE"] = "VACANT"
+    else: point_assignments["3. SECOND GATE"] = "VACANT"
 
     rotation = []
     for point in regular_duty_points:
@@ -88,23 +76,15 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 # --- UI Setup ---
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
-# PDF Print Optimization
-st.markdown("""
-    <style>
-    @media print {
-        .stButton, .stSidebar, footer, header {display: none !important;}
-        .main {margin: 0 !important; padding: 0 !important;}
-        .stTable {font-size: 14px !important;}
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 st.title("🛡️ Mathalamparai Duty System")
-st.caption("Tip: Press Ctrl + P to Save Chart as PDF")
 
+# Sidebar Controls
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
 is_weekend = selected_date.weekday() >= 5 
+
+# NEW: Shift Selection Dropdown
+target_shift = st.sidebar.selectbox("Select Shift to View", ["All Shifts", "A Shift", "B Shift", "C Shift"])
 
 if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
     try:
@@ -142,25 +122,44 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
             st.sidebar.subheader("📊 Summary")
             if week_offs: st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
             if on_leave: st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
-            if supervisors_present: st.sidebar.success(f"👨‍💼 **Supervisors:**\n" + "\n".join([f"- {n}" for n in supervisors_present]))
 
-            # Main Tables
-            for s in ["A", "B", "C"]:
+            # Filter shifts based on Selection
+            display_shifts = ["A", "B", "C"] if target_shift == "All Shifts" else [target_shift[0]]
+
+            for s in display_shifts:
                 if not shift_data[s]: continue
                 st.divider()
                 st.write(f"### 📅 {s} SHIFT - {selected_date.strftime('%d-%b-%Y')}")
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 
+                # List of all available staff for dropdown
+                all_staff_names = [stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"]
+
                 c1, c2, c3 = st.columns([1, 3, 1])
                 with c1:
                     st.write("**🛎️ Receptionist**")
                     for r in rec: st.info(r)
                 with c2:
-                    st.table(pd.DataFrame(rot)) # Simple table for better PDF view
+                    # NEW: Dropdown Selection enabled for Staff Name column
+                    df_rot = pd.DataFrame(rot)
+                    st.data_editor(
+                        df_rot, 
+                        column_config={
+                            "Staff Name": st.column_config.SelectboxColumn(
+                                "Staff Name",
+                                help="Select staff from dropdown",
+                                options=all_staff_names,
+                                required=True,
+                            )
+                        },
+                        hide_index=True, 
+                        use_container_width=True,
+                        key=f"editor_{s}"
+                    )
                 with c3:
                     st.write("**🏥 Wellness**")
                     st.warning(f"13. WELLNESS: {wellness}")
         else:
-            st.error("Date column not found in Sheet!")
+            st.error("Date column not found!")
     except Exception as e:
         st.error(f"Error: {e}")
