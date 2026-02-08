@@ -61,11 +61,13 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 
     if idx < staff_count:
         point_assignments["9. A BLOCK"] = guard_candidates[idx]['name']; idx += 1
-    else: point_assignments["9. A BLOCK"] = "VACANT"
+    else:
+        point_assignments["9. A BLOCK"] = "VACANT"
 
     if idx < staff_count:
         point_assignments["3. SECOND GATE"] = guard_candidates[idx]['name']; idx += 1
-    else: point_assignments["3. SECOND GATE"] = "VACANT"
+    else:
+        point_assignments["3. SECOND GATE"] = "VACANT"
 
     rotation = []
     for point in regular_duty_points:
@@ -76,12 +78,52 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 # --- UI Setup ---
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
-# PDF Print CSS
+# --- PREMIUM BACKGROUND & COLOR CSS ---
 st.markdown("""
     <style>
+    /* Full Page Background */
+    .stApp {
+        background: #f1f5f9; /* Soft Slate Grey/Blue background */
+    }
+    
+    /* Sidebar Design */
+    [data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+        color: white;
+    }
+
+    /* Shift Headers with Gradients */
+    .shift-header {
+        padding: 20px;
+        border-radius: 12px;
+        margin: 25px 0px 15px 0px;
+        color: white;
+        font-weight: 800;
+        text-align: center;
+        font-size: 26px;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+    .shift-a { background: linear-gradient(135deg, #dc2626, #f87171); }
+    .shift-b { background: linear-gradient(135deg, #2563eb, #60a5fa); }
+    .shift-c { background: linear-gradient(135deg, #059669, #34d399); }
+    
+    /* Content Cards */
+    .info-card {
+        background-color: white;
+        padding: 18px;
+        border-radius: 12px;
+        border-top: 4px solid #4f46e5;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        margin-bottom: 10px;
+    }
+    
+    h1 { color: #1e293b; text-align: center; font-weight: 800; }
+    
     @media print {
         .stButton, .stSidebar, footer, header {display: none !important;}
-        .main {margin: 0 !important; padding: 0 !important;}
+        .main {margin: 0 !important; padding: 0 !important; background: white !important;}
+        .stApp {background: white !important;}
     }
     </style>
     """, unsafe_allow_html=True)
@@ -94,7 +136,7 @@ day_str = str(selected_date.day)
 is_weekend = selected_date.weekday() >= 5 
 target_shift = st.sidebar.selectbox("Select Shift to View", ["All Shifts", "A Shift", "B Shift", "C Shift"])
 
-if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
+if st.button(f'🚀 Generate Rotation'):
     try:
         df_raw = pd.read_csv(url, header=None)
         date_col_idx = None
@@ -136,26 +178,25 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
 
             for s in display_list:
                 if not shift_data[s]: continue
-                st.divider()
-                st.write(f"### 📅 {s} SHIFT - {selected_date.strftime('%d-%b-%Y')}")
-                rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 
-                # DROPDOWN LIST: Inniku duty-la irukkira staff names mattum
+                # Colourful Shift Header
+                color_class = f"shift-{s.lower()}"
+                st.markdown(f'<div class="shift-header {color_class}">📅 {s} SHIFT - {selected_date.strftime("%d-%b-%Y")}</div>', unsafe_allow_html=True)
+                
+                rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 dropdown_options = sorted([stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"])
 
                 c1, c2, c3 = st.columns([1, 3, 1])
                 with c1:
-                    st.write("**🛎️ Receptionist**")
+                    st.markdown('<div class="info-card"><b>🛎️ Receptionist</b></div>', unsafe_allow_html=True)
                     for r in rec: st.info(r)
                 with c2:
-                    st.write("**📍 Regular Duty (Edit Name Below)**")
-                    # FIXED SELECTBOX CONFIGURATION
+                    # White background for the table area
                     st.data_editor(
                         pd.DataFrame(rot),
                         column_config={
                             "Staff Name": st.column_config.SelectboxColumn(
                                 "Staff Name",
-                                help="Click to select staff from list",
                                 options=dropdown_options,
                                 width="large",
                                 required=True
@@ -166,7 +207,7 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                         key=f"editor_{s}"
                     )
                 with c3:
-                    st.write("**🏥 Wellness**")
+                    st.markdown('<div class="info-card"><b>🏥 Wellness</b></div>', unsafe_allow_html=True)
                     st.warning(f"13. WELLNESS: {wellness}")
         else:
             st.error("Date column not found!")
