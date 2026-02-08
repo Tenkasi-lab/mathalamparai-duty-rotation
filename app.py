@@ -13,43 +13,47 @@ url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sh
 receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
 duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
-def generate_shift_rotation(staff_list, is_weekend, is_tuesday):
-    if not staff_list: return [], [], None
+def generate_shift_rotation(staff_with_ids, is_weekend, is_tuesday):
+    if not staff_with_ids: return [], [], None
     
-    staff_list = [name.strip().upper() for name in staff_list if str(name).strip()]
+    # 1. First, Filter out Week Off (W/O)
+    active_staff = [s for s in staff_with_ids if s['status'] not in ["W/O", "OFF"]]
+    random.shuffle(active_staff)
     
-    # 1. Tuesday Wellness Logic
-    tuesday_wellness_person = None
-    if is_tuesday and len(staff_list) > 13: # Only if extra staff available
-        tuesday_wellness_person = random.choice(staff_list)
-        staff_list.remove(tuesday_wellness_person)
+    # 2. Tuesday Wellness Logic
+    wellness_person = None
+    if is_tuesday:
+        # Pick 1 from active guards for Wellness
+        potential_wellness = [s for s in active_staff if not any(r in s['name'] for r in receptionists_pool)]
+        if potential_wellness:
+            wellness_person = random.choice(potential_wellness)
+            active_staff = [s for s in active_staff if s['id'] != wellness_person['id']]
 
-    # 2. Reception Logic
-    current_receptionists = [name for name in staff_list if any(r in name for r in receptionists_pool)]
-    current_guards = [name for name in staff_list if name not in current_receptionists]
-    
+    # 3. Reception Logic
     needed_reception = 1 if is_weekend else 2
+    reception_pool = [s for s in active_staff if any(r in s['name'] for r in receptionists_pool)]
+    guard_pool = [s for s in active_staff if s not in reception_pool]
     
-    reception = []
-    if current_receptionists:
-        reception = random.sample(current_receptionists, min(needed_reception, len(current_receptionists)))
+    selected_reception = []
+    if reception_pool:
+        selected_reception = random.sample(reception_pool, min(needed_reception, len(reception_pool)))
     
-    if len(reception) < needed_reception:
-        needed = needed_reception - len(reception)
-        extra = random.sample(current_guards, min(needed, len(current_guards)))
-        reception.extend(extra)
+    if len(selected_reception) < needed_reception:
+        needed = needed_reception - len(selected_reception)
+        if guard_pool:
+            extra = random.sample(guard_pool, min(needed, len(guard_pool)))
+            selected_reception.extend(extra)
 
-    # 3. Guard Duty (All remaining staff)
-    remaining_staff = [s for s in staff_list if s not in reception]
-    random.shuffle(remaining_staff)
+    # 4. Final Duty Assignment
+    final_pool = [s for s in active_staff if s not in selected_reception]
+    random.shuffle(final_pool)
     
     rotation = []
     for i, point in enumerate(duty_points):
-        # Ippo kaila irukura ellaraiyum points-ku use pannuvom
-        name = remaining_staff[i] if i < len(remaining_staff) else "OFF / BUFFER"
-        rotation.append({"Point": point, "Staff Name": name})
+        staff_name = final_pool[i]['name'] if i < len(final_pool) else "OFF / BUFFER"
+        rotation.append({"Point": point, "Staff Name": staff_name})
         
-    return rotation, reception, tuesday_wellness_person
+    return rotation, [s['name'] for s in selected_reception], wellness_person['name'] if wellness_person else None
 
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 st.title("🛡️ Mathalamparai Duty Rotation System")
@@ -57,9 +61,9 @@ st.title("🛡️ Mathalamparai Duty Rotation System")
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
 is_weekend = selected_date.weekday() >= 5 
-is_tuesday = selected_date.weekday() == 1 # Tuesday is index 1
+is_tuesday = selected_date.weekday() == 1 
 
-if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
+if st.button(f'Generate Rotation for {selected_date.strftime("%d-%m-%Y")}'):
     try:
         df_raw = pd.read_csv(url, header=None)
         date_col_idx = None
@@ -72,13 +76,18 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
 
         if date_col_idx is not None:
             shift_data = {"A": [], "B": [], "C": []}
-            # Extended range to A52 to pick all names
-            for i in range(4, 55): 
+            # Range updated to A5 to A70
+            for i in range(4, 70): 
                 if i < len(df_raw):
                     name = str(df_raw.iloc[i, 1]).strip().upper()
-                    shift_val = str(df_raw.iloc[i, date_col_idx]).strip().upper()
-                    if shift_val in shift_data:
-                        shift_data[shift_val].append(name)
+                    status_val = str(df_raw.iloc[i, date_col_idx]).strip().upper()
+                    
+                    # Agar status A, B, or C ah irundha add pannuvom
+                    if status_val in ["A", "B", "C"]:
+                        shift_data[status_val].append({'id': i, 'name': name, 'status': status_val})
+                    # Week off ah irundha attendance list-la irundhu ignore pannidum logic
+                    elif status_val == "W/O":
+                        continue
 
             for s in ["A", "B", "C"]:
                 st.divider()
@@ -89,12 +98,11 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                 with c1:
                     st.subheader("🛎️ Reception")
                     for r in rec: st.info(r)
-                    if wellness:
-                        st.warning(f"🏥 Wellness: {wellness}")
+                    if wellness: st.warning(f"🏥 Wellness Duty: {wellness}")
                 with c2:
                     st.subheader("📍 Duty Points")
                     st.table(pd.DataFrame(rot))
         else:
-            st.error("Date column not found in Sheet!")
+            st.error("Date column not found!")
     except Exception as e:
         st.error(f"Error: {e}")
