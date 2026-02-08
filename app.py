@@ -39,7 +39,7 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
             
     pool_after_wellness = [s for s in staff_with_ids if s['id'] != (wellness_person['id'] if wellness_person else -1)]
 
-    # 2. Reception Logic (Weekend 1, Weekday 2)
+    # 2. Reception Logic
     needed_reception = 1 if is_weekend else 2
     reception_pool = [s for s in pool_after_wellness if any(r in s['name'] for r in receptionists_pool)]
     selected_reception = random.sample(reception_pool, min(needed_reception, len(reception_pool)))
@@ -51,7 +51,6 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
     staff_count = len(final_guard_pool)
     point_assignments = {}
     
-    # Points to fill in order of importance
     essential_points = [p for p in regular_duty_points if p not in ["3. SECOND GATE", "9. A BLOCK"]]
     
     idx = 0
@@ -62,14 +61,12 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
         else:
             point_assignments[point] = "OFF / BUFFER"
 
-    # Vacant Priority 2: A BLOCK
     if idx < staff_count:
         point_assignments["9. A BLOCK"] = final_guard_pool[idx]['name']
         idx += 1
     else:
         point_assignments["9. A BLOCK"] = "VACANT"
 
-    # Vacant Priority 1: SECOND GATE
     if idx < staff_count:
         point_assignments["3. SECOND GATE"] = final_guard_pool[idx]['name']
         idx += 1
@@ -106,8 +103,8 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
             week_offs = []
             on_leave = []
 
-            # Scanner Range A1 to A59
-            for i in range(0, 60): 
+            # Scanner Range A1 to A70
+            for i in range(0, 71): 
                 if i < len(df_raw):
                     name_cell = str(df_raw.iloc[i, 1]).strip().upper()
                     status_cell = str(df_raw.iloc[i, date_col_idx]).strip().upper()
@@ -117,18 +114,22 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
                         elif status_cell == "W/O":
                             week_offs.append(name_cell)
-                        elif status_cell == "L":
+                        elif "L" == status_cell or "LEAVE" in status_cell:
                             on_leave.append(name_cell)
 
-            # --- Sidebar Summary ---
+            # --- Sidebar Summary (Fixing the Display) ---
             st.sidebar.markdown("---")
-            st.sidebar.subheader("📊 Attendance Summary")
-            st.sidebar.write(f"**Total Present Today:** {sum(len(v) for v in shift_data.values())}")
+            st.sidebar.subheader("📊 Summary")
             
             if week_offs:
                 st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
+            else:
+                st.sidebar.write("No Week Offs marked.")
+                
             if on_leave:
                 st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
+            else:
+                st.sidebar.write("No Leaves marked.")
 
             # --- Main Display ---
             for s in ["A", "B", "C"]:
@@ -148,6 +149,6 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                     st.subheader("🏥 Wellness")
                     st.warning(f"13. WELLNESS: {wellness}")
         else:
-            st.error(f"Date {day_str} not found in Sheet columns!")
+            st.error("Date column not found!")
     except Exception as e:
-        st.error(f"Script execution error: {e}")
+        st.error(f"Error: {e}")
