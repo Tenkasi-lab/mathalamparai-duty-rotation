@@ -13,8 +13,6 @@ url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sh
 # Permanent Pools
 receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
 wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
-
-# EXACT SUPERVISOR NAMES
 supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
 
 # Regular Duty Points Order
@@ -54,6 +52,7 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
     staff_count = len(final_guard_pool)
     point_assignments = {}
     
+    # Fill essential points first
     essential_points = [p for p in regular_duty_points if p not in ["3. SECOND GATE", "9. A BLOCK"]]
     
     idx = 0
@@ -64,14 +63,13 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
         else:
             point_assignments[point] = "OFF / BUFFER"
 
-    # Vacant Priority 2: A BLOCK
+    # Vacant Priority
     if idx < staff_count:
         point_assignments["9. A BLOCK"] = final_guard_pool[idx]['name']
         idx += 1
     else:
         point_assignments["9. A BLOCK"] = "VACANT"
 
-    # Vacant Priority 1: SECOND GATE
     if idx < staff_count:
         point_assignments["3. SECOND GATE"] = final_guard_pool[idx]['name']
         idx += 1
@@ -96,9 +94,11 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
     try:
         df_raw = pd.read_csv(url, header=None)
         date_col_idx = None
+        # Find Date Column
         for r in range(min(10, len(df_raw))):
             for c in range(len(df_raw.columns)):
-                if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
+                cell_val = str(df_raw.iloc[r, c]).strip()
+                if cell_val in [day_str, day_str.zfill(2)]:
                     date_col_idx = c
                     break
             if date_col_idx is not None: break
@@ -107,53 +107,65 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
             shift_data = {"A": [], "B": [], "C": []}
             week_offs, on_leave, supervisors_present = [], [], []
 
+            # Scanning from Row 1 to 71 (Adjusted range)
             for i in range(0, 71): 
                 if i < len(df_raw):
                     name_cell = str(df_raw.iloc[i, 1]).strip().upper()
                     status_cell = str(df_raw.iloc[i, date_col_idx]).strip().upper()
                     
                     if name_cell and name_cell not in ["NAME", "STAFF NAME", "NAN", "MATHALAMPARA"]:
-                        # CHECK FOR SUPERVISORS
+                        # Track Attendance Summary
+                        if status_cell == "W/O":
+                            week_offs.append(name_cell)
+                        elif status_cell == "L":
+                            on_leave.append(name_cell)
+                        
+                        # Track Supervisors
                         if any(sup in name_cell for sup in supervisors_pool):
                             if status_cell in ["A", "B", "C"]:
                                 supervisors_present.append(f"{name_cell} ({status_cell})")
                             continue
 
-                        # FIXED: Removed extra comma in shift check
+                        # Add to active shifts
                         if status_cell in ["A", "B", "C"]:
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
-                        elif status_cell == "W/O":
-                            week_offs.append(name_cell)
-                        elif status_cell == "L":
-                            on_leave.append(name_cell)
 
-            # Sidebar Summary
+            # --- Sidebar Attendance Summary ---
             st.sidebar.markdown("---")
-            st.sidebar.subheader("📊 Summary")
+            st.sidebar.subheader("📊 Daily Summary")
+            
             if supervisors_present:
                 st.sidebar.success(f"👨‍💼 **Supervisors ({len(supervisors_present)}):**\n" + "\n".join([f"- {n}" for n in supervisors_present]))
+            
             if week_offs:
                 st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
+            else:
+                st.sidebar.info("🏖️ No Week Offs marked.")
+
             if on_leave:
                 st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
+            else:
+                st.sidebar.warning("🏥 No Leaves marked.")
 
+            # --- Main Shift Tables ---
             for s in ["A", "B", "C"]:
                 if not shift_data[s]: continue
                 st.divider()
                 st.header(f"📅 {s} SHIFT")
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend)
                 
-                c1, c2, c3 = st.columns([1, 2, 1])
+                c1, c2, c3 = st.columns([1, 3, 1]) # Center column (c2) is larger for the table
                 with c1:
                     st.subheader("🛎️ Reception")
                     for r in rec: st.info(r)
                 with c2:
                     st.subheader("📍 Regular Duty (Editable)")
-                    st.data_editor(pd.DataFrame(rot), key=f"edit_{s}", hide_index=True, use_container_width=True)
+                    # Table size made larger using use_container_width
+                    st.data_editor(pd.DataFrame(rot), key=f"edit_{s}", hide_index=True, use_container_width=True, height=450)
                 with c3:
                     st.subheader("🏥 Wellness")
                     st.warning(f"13. WELLNESS: {wellness}")
         else:
-            st.error("Date column not found!")
+            st.error("Date column not found in Google Sheet!")
     except Exception as e:
         st.error(f"Error: {e}")
