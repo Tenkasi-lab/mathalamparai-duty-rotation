@@ -76,14 +76,21 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 # --- UI Setup ---
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
+st.markdown("""
+    <style>
+    @media print {
+        .stButton, .stSidebar, footer, header {display: none !important;}
+        .main {margin: 0 !important; padding: 0 !important;}
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("🛡️ Mathalamparai Duty System")
 
 # Sidebar Controls
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
 is_weekend = selected_date.weekday() >= 5 
-
-# NEW: Shift Selection Dropdown
 target_shift = st.sidebar.selectbox("Select Shift to View", ["All Shifts", "A Shift", "B Shift", "C Shift"])
 
 if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
@@ -107,52 +114,59 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                     status_cell = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
                     
                     if name_cell and name_cell not in ["NAME", "STAFF NAME", "NAN", "MATHALAMPARA"]:
+                        # 1. Week Off / Leave
                         if status_cell == "WO" or status_cell == "W/O" or "OFF" in status_cell:
                             week_offs.append(name_cell)
                         elif status_cell == "L" or "LEAVE" in status_cell:
                             on_leave.append(name_cell)
+                        # 2. Supervisor Logic
                         elif any(sup in name_cell for sup in supervisors_pool):
                             if status_cell in ["A", "B", "C"]:
                                 supervisors_present.append(f"{name_cell} ({status_cell})")
+                        # 3. Guard Shifts
                         elif status_cell in ["A", "B", "C"]:
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
 
-            # Sidebar Summary
+            # --- Sidebar Summary ---
             st.sidebar.markdown("---")
             st.sidebar.subheader("📊 Summary")
-            if week_offs: st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
-            if on_leave: st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
+            if supervisors_present:
+                st.sidebar.success(f"👨‍💼 **Supervisors ({len(supervisors_present)}):**\n" + "\n".join([f"- {n}" for n in supervisors_present]))
+            if week_offs:
+                st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
+            if on_leave:
+                st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
 
-            # Filter shifts based on Selection
-            display_shifts = ["A", "B", "C"] if target_shift == "All Shifts" else [target_shift[0]]
+            # Filter Display
+            display_list = ["A", "B", "C"] if target_shift == "All Shifts" else [target_shift[0]]
 
-            for s in display_shifts:
+            for s in display_list:
                 if not shift_data[s]: continue
                 st.divider()
                 st.write(f"### 📅 {s} SHIFT - {selected_date.strftime('%d-%b-%Y')}")
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 
-                # List of all available staff for dropdown
-                all_staff_names = [stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"]
+                # Available names for this shift
+                names_for_dropdown = [stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"]
 
                 c1, c2, c3 = st.columns([1, 3, 1])
                 with c1:
                     st.write("**🛎️ Receptionist**")
                     for r in rec: st.info(r)
                 with c2:
-                    # NEW: Dropdown Selection enabled for Staff Name column
+                    st.write("**📍 Regular Duty (Select Name to Edit)**")
                     df_rot = pd.DataFrame(rot)
+                    # FIXED: Dropdown Selection Column
                     st.data_editor(
-                        df_rot, 
+                        df_rot,
                         column_config={
                             "Staff Name": st.column_config.SelectboxColumn(
                                 "Staff Name",
-                                help="Select staff from dropdown",
-                                options=all_staff_names,
-                                required=True,
+                                options=names_for_dropdown,
+                                width="large"
                             )
                         },
-                        hide_index=True, 
+                        hide_index=True,
                         use_container_width=True,
                         key=f"editor_{s}"
                     )
