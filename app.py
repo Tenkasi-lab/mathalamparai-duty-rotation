@@ -23,7 +23,6 @@ def generate_shift_rotation(staff_with_ids, is_weekend, is_tuesday):
     # 2. Tuesday Wellness Logic
     wellness_person = None
     if is_tuesday:
-        # Pick 1 from active guards for Wellness
         potential_wellness = [s for s in active_staff if not any(r in s['name'] for r in receptionists_pool)]
         if potential_wellness:
             wellness_person = random.choice(potential_wellness)
@@ -44,14 +43,15 @@ def generate_shift_rotation(staff_with_ids, is_weekend, is_tuesday):
             extra = random.sample(guard_pool, min(needed, len(guard_pool)))
             selected_reception.extend(extra)
 
-    # 4. Final Duty Assignment
+    # 4. Final Duty Assignment (Use ID to prevent duplicate name issues)
     final_pool = [s for s in active_staff if s not in selected_reception]
     random.shuffle(final_pool)
     
     rotation = []
     for i, point in enumerate(duty_points):
-        staff_name = final_pool[i]['name'] if i < len(final_pool) else "OFF / BUFFER"
-        rotation.append({"Point": point, "Staff Name": staff_name})
+        # Ippo ellarukkum duty varum, "Suthakar (New)" kooda sariya assign aayidum
+        name = final_pool[i]['name'] if i < len(final_pool) else "OFF / BUFFER"
+        rotation.append({"Point": point, "Staff Name": name})
         
     return rotation, [s['name'] for s in selected_reception], wellness_person['name'] if wellness_person else None
 
@@ -76,18 +76,15 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%m-%Y")}'):
 
         if date_col_idx is not None:
             shift_data = {"A": [], "B": [], "C": []}
-            # Range updated to A5 to A70
+            # Scanner from A5 to A70
             for i in range(4, 70): 
                 if i < len(df_raw):
                     name = str(df_raw.iloc[i, 1]).strip().upper()
                     status_val = str(df_raw.iloc[i, date_col_idx]).strip().upper()
                     
-                    # Agar status A, B, or C ah irundha add pannuvom
                     if status_val in ["A", "B", "C"]:
+                        # Using row index 'i' as unique ID to separate same names
                         shift_data[status_val].append({'id': i, 'name': name, 'status': status_val})
-                    # Week off ah irundha attendance list-la irundhu ignore pannidum logic
-                    elif status_val == "W/O":
-                        continue
 
             for s in ["A", "B", "C"]:
                 st.divider()
@@ -98,7 +95,8 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%m-%Y")}'):
                 with c1:
                     st.subheader("🛎️ Reception")
                     for r in rec: st.info(r)
-                    if wellness: st.warning(f"🏥 Wellness Duty: {wellness}")
+                    if wellness:
+                        st.warning(f"🏥 Wellness Duty: {wellness}")
                 with c2:
                     st.subheader("📍 Duty Points")
                     st.table(pd.DataFrame(rot))
