@@ -54,16 +54,15 @@ st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 st.markdown("""
     <style>
     .stApp { background: #f1f5f9; }
-    .print-header { display: none; } /* Hidden on screen */
     
     @media print {
         .stButton, .stSidebar, footer, header, hr, .no-print { display: none !important; }
         .main { margin: 0 !important; padding: 10px !important; background: white !important; }
         .stApp { background: white !important; }
-        .print-header { display: block !important; text-align: center; margin-bottom: 20px; }
         .duty-table { width: 100% !important; font-size: 18px !important; border-collapse: collapse; }
-        .summary-box { border: 2px solid #000; padding: 10px; margin-bottom: 10px; display: block !important; }
-        h3 { font-size: 24px !important; background-color: #eee !important; padding: 10px !important; }
+        .summary-box { border: 2px solid #000; padding: 15px; margin-bottom: 15px; background-color: #f9fafb !important; }
+        .leave-box { border: 1px dashed #666; padding: 10px; margin-top: 20px; font-size: 16px; background-color: #fff !important; }
+        h3 { font-size: 26px !important; text-align: center; }
     }
     
     .shift-header { padding: 15px; border-radius: 10px; color: white; text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 15px; }
@@ -75,7 +74,6 @@ st.markdown("""
 
 st.title("🛡️ Mathalamparai Duty System")
 
-# Sidebar
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
 target_shift = st.sidebar.selectbox("Select Shift to View/Print", ["A Shift", "B Shift", "C Shift", "All Shifts"])
@@ -84,7 +82,7 @@ col1, col2 = st.columns([1, 1])
 with col1:
     gen_btn = st.button('🚀 Generate Rotation')
 with col2:
-    st.components.v1.html('<button style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;" onclick="window.parent.print()">🖨️ Print Selected Shift</button>', height=60)
+    st.components.v1.html('<button style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ Print Selected Shift</button>', height=60)
 
 if gen_btn:
     try:
@@ -100,14 +98,19 @@ if gen_btn:
         if date_col_idx:
             shift_data = {"A": [], "B": [], "C": []}
             supervisors_by_shift = {"A": [], "B": [], "C": []}
+            week_offs, on_leave = [], []
 
             for i in range(len(df_raw)):
-                if i > 80: break
+                if i > 85: break
                 name = str(df_raw.iloc[i, 1]).strip().upper()
                 status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
                 
-                if name and name not in ["NAME", "NAN"]:
-                    if any(sup in name for sup in supervisors_pool):
+                if name and name not in ["NAME", "NAN", "STAFF NAME"]:
+                    if status == "WO" or status == "W/O" or "OFF" in status:
+                        week_offs.append(name)
+                    elif status == "L" or "LEAVE" in status:
+                        on_leave.append(name)
+                    elif any(sup in name for sup in supervisors_pool):
                         if status in ["A", "B", "C"]: supervisors_by_shift[status].append(name)
                     elif status in ["A", "B", "C"]:
                         shift_data[status].append({'id': i, 'name': name})
@@ -119,10 +122,10 @@ if gen_btn:
                 
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], (selected_date.weekday() >= 5), selected_date)
                 
-                # PRINT LAYOUT
+                # SHIFT HEADER
                 st.markdown(f'<div class="shift-header shift-{s.lower()}">📅 {s} SHIFT - {selected_date.strftime("%d-%b-%Y")}</div>', unsafe_allow_html=True)
                 
-                # Summary for Print
+                # SUMMARY BOX (Print layout)
                 st.markdown(f"""
                 <div class="summary-box">
                     <b>👨‍💼 Supervisor:</b> {", ".join(supervisors_by_shift[s]) if supervisors_by_shift[s] else "N/A"} <br>
@@ -131,8 +134,17 @@ if gen_btn:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Main Table
+                # MAIN DUTY TABLE
                 st.table(pd.DataFrame(rot))
+                
+                # LEAVE & WEEK OFF SECTION (Specific for Print)
+                st.markdown(f"""
+                <div class="leave-box">
+                    <b>🏖️ Week Off (Today):</b> {", ".join(week_offs) if week_offs else "None"} <br>
+                    <b>🏥 On Leave (Today):</b> {", ".join(on_leave) if on_leave else "None"}
+                </div>
+                """, unsafe_allow_html=True)
+                
                 st.divider()
         else:
             st.error("Date column not found!")
