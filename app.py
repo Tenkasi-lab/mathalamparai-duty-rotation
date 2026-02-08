@@ -13,6 +13,8 @@ url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sh
 # Permanent Pools
 receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
 wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
+# Supervisor Pool - Ivangala Duty Points-ku edukka koodathu
+supervisors_pool = ["INDIRAJITH", "DHILIP", "MOHAN RANJITH KUMAR"]
 
 # Regular Duty Points Order
 regular_duty_points = [
@@ -104,6 +106,7 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
             shift_data = {"A": [], "B": [], "C": []}
             week_offs = []
             on_leave = []
+            supervisors_on_duty = []
 
             # Scanner Range A1 to A71
             for i in range(0, 71): 
@@ -112,6 +115,12 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                     status_cell = str(df_raw.iloc[i, date_col_idx]).strip().upper()
                     
                     if name_cell and name_cell not in ["NAME", "STAFF NAME", "NAN", "MATHALAMPARA"]:
+                        # Logic to skip supervisors from duty rotation
+                        if any(sup in name_cell for sup in supervisors_pool):
+                            if status_cell in ["A", "B", "C"]:
+                                supervisors_on_duty.append(f"{name_cell} ({status_cell})")
+                            continue
+                            
                         if status_cell in ["A", "B", "C"]:
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
                         elif status_cell == "W/O":
@@ -123,15 +132,14 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
             st.sidebar.markdown("---")
             st.sidebar.subheader("📊 Summary")
             
+            if supervisors_on_duty:
+                st.sidebar.success(f"👨‍💼 **Supervisors ({len(supervisors_on_duty)}):**\n" + "\n".join([f"- {n}" for n in supervisors_on_duty]))
+            
             if week_offs:
                 st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
-            else:
-                st.sidebar.write("No Week Offs marked.")
-                
+            
             if on_leave:
                 st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
-            else:
-                st.sidebar.write("No Leaves marked.")
 
             # --- Main Display ---
             for s in ["A", "B", "C"]:
@@ -146,12 +154,11 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                     for r in rec: st.info(r)
                 with c2:
                     st.subheader("📍 Regular Duty (Editable)")
-                    # MANUAL EDIT: Table-la click panni neenga name-ah maathikalaam
                     st.data_editor(pd.DataFrame(rot), key=f"edit_{s}", hide_index=True, use_container_width=True)
                 with c3:
                     st.subheader("🏥 Wellness")
                     st.warning(f"13. WELLNESS: {wellness}")
         else:
-            st.error(f"Date {day_str} not found in Sheet columns!")
+            st.error(f"Date {day_str} not found!")
     except Exception as e:
-        st.error(f"Script execution error: {e}")
+        st.error(f"Error: {e}")
