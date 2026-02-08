@@ -76,7 +76,7 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 # --- UI Setup ---
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
-# PDF Print Optimization Fix
+# PDF Print CSS
 st.markdown("""
     <style>
     @media print {
@@ -125,17 +125,13 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                         elif status_cell in ["A", "B", "C"]:
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
 
-            # --- Sidebar Summary ---
+            # Sidebar Summary
             st.sidebar.markdown("---")
             st.sidebar.subheader("📊 Summary")
-            if supervisors_on_duty:
-                st.sidebar.success(f"👨‍💼 **Supervisors ({len(supervisors_on_duty)}):**\n" + "\n".join([f"- {n}" for n in supervisors_on_duty]))
-            if week_offs:
-                st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
-            if on_leave:
-                st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
+            if supervisors_on_duty: st.sidebar.success(f"👨‍💼 **Supervisors:**\n" + "\n".join([f"- {n}" for n in supervisors_on_duty]))
+            if week_offs: st.sidebar.info(f"🏖️ **Week Off:**\n" + "\n".join([f"- {n}" for n in week_offs]))
+            if on_leave: st.sidebar.warning(f"🏥 **On Leave:**\n" + "\n".join([f"- {n}" for n in on_leave]))
 
-            # Filter Display
             display_list = ["A", "B", "C"] if target_shift == "All Shifts" else [target_shift[0]]
 
             for s in display_list:
@@ -144,23 +140,25 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                 st.write(f"### 📅 {s} SHIFT - {selected_date.strftime('%d-%b-%Y')}")
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 
-                # Dropdown Options
-                names_for_dropdown = [stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"]
+                # DROPDOWN LIST: Inniku duty-la irukkira staff names mattum
+                dropdown_options = sorted([stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"])
 
                 c1, c2, c3 = st.columns([1, 3, 1])
                 with c1:
                     st.write("**🛎️ Receptionist**")
                     for r in rec: st.info(r)
                 with c2:
-                    st.write("**📍 Regular Duty (Select Name to Edit)**")
-                    # FIXED: Selectbox column configuration
+                    st.write("**📍 Regular Duty (Edit Name Below)**")
+                    # FIXED SELECTBOX CONFIGURATION
                     st.data_editor(
                         pd.DataFrame(rot),
                         column_config={
                             "Staff Name": st.column_config.SelectboxColumn(
                                 "Staff Name",
-                                options=names_for_dropdown,
-                                width="large"
+                                help="Click to select staff from list",
+                                options=dropdown_options,
+                                width="large",
+                                required=True
                             )
                         },
                         hide_index=True,
