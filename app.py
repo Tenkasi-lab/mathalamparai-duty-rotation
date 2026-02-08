@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import random
 from datetime import datetime
 import urllib.parse
 
@@ -10,55 +9,66 @@ sheet_name = "FEBRUARY-2026"
 encoded_sheet_name = urllib.parse.quote(sheet_name)
 url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
 
-# Permanent Pools
+# Configuration
 receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
 wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
 supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
 
-# Regular Duty Points Order
 regular_duty_points = [
     "1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", 
     "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", 
     "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"
 ]
 
-def generate_shift_rotation(staff_with_ids, is_weekend):
+def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
     if not staff_with_ids: return [], [], "NOT ASSIGNED"
-    random.shuffle(staff_with_ids)
+    staff_with_ids.sort(key=lambda x: x['id'])
+    day_val = selected_date.day
+    shift_amt = day_val % len(staff_with_ids)
+    rotated_pool = staff_with_ids[shift_amt:] + staff_with_ids[:shift_amt]
     
-    # 1. Wellness Duty Logic
     wellness_person = None
-    present_specialists = [s for s in staff_with_ids if any(sp in s['name'] for sp in wellness_specialists)]
-    if present_specialists:
-        wellness_person = present_specialists[0]
+    wellness_candidates = [s for s in rotated_pool if any(sp in s['name'] for sp in wellness_specialists)]
+    if wellness_candidates:
+        wellness_person = wellness_candidates[0]
     else:
-        potential_guards = [s for s in staff_with_ids if not any(r in s['name'] for r in receptionists_pool)]
-        if potential_guards: wellness_person = random.choice(potential_guards)
-            
-    pool_after_wellness = [s for s in staff_with_ids if s['id'] != (wellness_person['id'] if wellness_person else -1)]
+        for s in rotated_pool:
+            if not any(r in s['name'] for r in receptionists_pool):
+                wellness_person = s
+                break
+    
+    pool_after_wellness = [s for s in rotated_pool if s['id'] != (wellness_person['id'] if wellness_person else -1)]
     needed_reception = 1 if is_weekend else 2
-    reception_pool = [s for s in pool_after_wellness if any(r in s['name'] for r in receptionists_pool)]
-    selected_reception = random.sample(reception_pool, min(needed_reception, len(reception_pool)))
+    selected_reception = []
+    guard_candidates = []
     
-    final_guard_pool = [s for s in pool_after_wellness if s not in selected_reception]
-    random.shuffle(final_guard_pool)
-    staff_count = len(final_guard_pool)
+    for s in pool_after_wellness:
+        if any(r in s['name'] for r in receptionists_pool) and len(selected_reception) < needed_reception:
+            selected_reception.append(s)
+        else:
+            guard_candidates.append(s)
+            
     point_assignments = {}
-    
+    staff_count = len(guard_candidates)
     essential_points = [p for p in regular_duty_points if p not in ["3. SECOND GATE", "9. A BLOCK"]]
+    
     idx = 0
     for point in essential_points:
         if idx < staff_count:
-            point_assignments[point] = final_guard_pool[idx]['name']; idx += 1
-        else: point_assignments[point] = "OFF / BUFFER"
+            point_assignments[point] = guard_candidates[idx]['name']
+            idx += 1
+        else:
+            point_assignments[point] = "OFF / BUFFER"
 
     if idx < staff_count:
-        point_assignments["9. A BLOCK"] = final_guard_pool[idx]['name']; idx += 1
-    else: point_assignments["9. A BLOCK"] = "VACANT"
+        point_assignments["9. A BLOCK"] = guard_candidates[idx]['name']; idx += 1
+    else:
+        point_assignments["9. A BLOCK"] = "VACANT"
 
     if idx < staff_count:
-        point_assignments["3. SECOND GATE"] = final_guard_pool[idx]['name']; idx += 1
-    else: point_assignments["3. SECOND GATE"] = "VACANT"
+        point_assignments["3. SECOND GATE"] = guard_candidates[idx]['name']; idx += 1
+    else:
+        point_assignments["3. SECOND GATE"] = "VACANT"
 
     rotation = []
     for point in regular_duty_points:
@@ -68,7 +78,19 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
 
 # --- UI Setup ---
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
+
+# PRINT OPTIMIZATION CSS
+st.markdown("""
+    <style>
+    @media print {
+        .stButton, .stSidebar, footer, header {display: none !important;}
+        .main {margin: 0 !important; padding: 0 !important;}
+    }
+    </style>
+    """, unsafe_allow_value=True)
+
 st.title("🛡️ Mathalamparai Daily Duty Rotation")
+st.caption("Press Ctrl + P to Save as PDF")
 
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
@@ -80,8 +102,7 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
         date_col_idx = None
         for r in range(min(15, len(df_raw))):
             for c in range(len(df_raw.columns)):
-                cell_val = str(df_raw.iloc[r, c]).strip()
-                if cell_val in [day_str, day_str.zfill(2)]:
+                if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
                     date_col_idx = c
                     break
             if date_col_idx is not None: break
@@ -93,55 +114,43 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
             for i in range(0, 81): 
                 if i < len(df_raw):
                     name_cell = str(df_raw.iloc[i, 1]).strip().upper()
-                    # CLEANING: Space-ah remove panni check panrom (W O -> WO)
                     status_cell = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
                     
                     if name_cell and name_cell not in ["NAME", "STAFF NAME", "NAN", "MATHALAMPARA"]:
-                        # Detect Week Off (Checks for WO, WO, W/O)
                         if status_cell == "WO" or status_cell == "W/O" or "OFF" in status_cell:
                             week_offs.append(name_cell)
-                        # Detect Leave
                         elif status_cell == "L" or "LEAVE" in status_cell:
                             on_leave.append(name_cell)
-                        # Detect Supervisors
                         elif any(sup in name_cell for sup in supervisors_pool):
                             if status_cell in ["A", "B", "C"]:
                                 supervisors_present.append(f"{name_cell} ({status_cell})")
-                        # Add Active Shifts
                         elif status_cell in ["A", "B", "C"]:
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
 
-            # --- Sidebar Summary Display ---
+            # Sidebar Summary
             st.sidebar.markdown("---")
             st.sidebar.subheader("📊 Summary")
-            
-            if week_offs:
-                st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
-            
-            if on_leave:
-                st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
+            if week_offs: st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
+            if on_leave: st.sidebar.warning(f"🏥 **On Leave ({len(on_leave)}):**\n" + "\n".join([f"- {n}" for n in on_leave]))
+            if supervisors_present: st.sidebar.success(f"👨‍💼 **Supervisors:**\n" + "\n".join([f"- {n}" for n in supervisors_present]))
 
-            if supervisors_present:
-                st.sidebar.success(f"👨‍💼 **Supervisors ({len(supervisors_present)}):**\n" + "\n".join([f"- {n}" for n in supervisors_present]))
-
-            # --- Main Tables ---
+            # Display Tables
             for s in ["A", "B", "C"]:
                 if not shift_data[s]: continue
-                st.divider()
-                st.header(f"📅 {s} SHIFT")
-                rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend)
+                st.write(f"### 📅 {s} SHIFT - {selected_date.strftime('%d-%b-%Y')}")
+                rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 
                 c1, c2, c3 = st.columns([1, 3, 1])
                 with c1:
-                    st.subheader("🛎️ Reception")
+                    st.write("**🛎️ Receptionist**")
                     for r in rec: st.info(r)
                 with c2:
-                    st.subheader("📍 Regular Duty (Editable)")
-                    st.data_editor(pd.DataFrame(rot), key=f"edit_{s}", hide_index=True, use_container_width=True, height=450)
+                    st.table(pd.DataFrame(rot)) # PDF-kaga fixed table use panrom
                 with c3:
-                    st.subheader("🏥 Wellness")
+                    st.write("**🏥 Wellness**")
                     st.warning(f"13. WELLNESS: {wellness}")
+                st.divider()
         else:
-            st.error("Sheet column-la date-ah kandupudikka mudiyala!")
+            st.error("Date column not found!")
     except Exception as e:
         st.error(f"Error: {e}")
