@@ -2,11 +2,15 @@ import streamlit as st
 import pandas as pd
 import random
 from datetime import datetime
+import urllib.parse
 
 # Google Sheet Details
 sheet_id = "1v95g8IVPITIF4-mZghIvh1wyr5YUxHGmgK3jyWhtuEQ"
-sheet_name = "शीट20" 
-url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+sheet_name = "FEBRUARY-2026" 
+
+# Special encoding to fix the 'ascii' error with hyphen/spaces
+encoded_sheet_name = urllib.parse.quote(sheet_name)
+url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
 
 # Receptionist names only
 receptionists_pool = [
@@ -24,10 +28,13 @@ duty_points = [
 
 def generate_rotation():
     try:
-        df = pd.read_csv(url)
+        # Read sheet with UTF-8 encoding
+        df = pd.read_csv(url, encoding='utf-8')
+        
         # Taking Column B (index 1) which has names, from row 5 to 49
+        # pandas index-la Row 5 is index 3 or 4 depending on header
         all_staff = df.iloc[3:48, 1].dropna().tolist()
-        all_staff = [name.strip().upper() for name in all_staff]
+        all_staff = [str(name).strip().upper() for name in all_staff]
         
         # Remove Receptionists from Main Pool
         main_guard_pool = [name for name in all_staff if name not in receptionists_pool]
@@ -63,6 +70,7 @@ if st.button('Generate New Random Rotation'):
     
     if isinstance(rotation, str):
         st.error(f"Error reading sheet: {rotation}")
+        st.info("Tip: Make sure the Google Sheet is shared with 'Anyone with the link' as Viewer.")
     else:
         col1, col2 = st.columns(2)
         with col1:
