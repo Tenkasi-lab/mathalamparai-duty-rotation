@@ -7,82 +7,72 @@ import urllib.parse
 # Google Sheet Details
 sheet_id = "1v95g8IVPITIF4-mZghIvh1wyr5YUxHGmgK3jyWhtuEQ"
 sheet_name = "FEBRUARY-2026" 
-
-# Special encoding to fix the 'ascii' error with hyphen/spaces
 encoded_sheet_name = urllib.parse.quote(sheet_name)
 url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
 
-# Receptionist names only
-receptionists_pool = [
-    "KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", 
-    "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"
-]
+receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
+duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
-# Your 12 Duty Points
-duty_points = [
-    "1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", 
-    "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", 
-    "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", 
-    "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"
-]
+def generate_shift_rotation(staff_list):
+    if not staff_list: return [], []
+    current_receptionists = [name for name in staff_list if name in receptionists_pool]
+    current_guards = [name for name in staff_list if name not in receptionists_pool]
+    
+    if len(current_receptionists) >= 2:
+        reception = random.sample(current_receptionists, 2)
+    else:
+        needed = 2 - len(current_receptionists)
+        reception = current_receptionists + (random.sample(current_guards, min(needed, len(current_guards))) if current_guards else [])
+    
+    remaining_guards = [g for g in current_guards if g not in reception]
+    random.shuffle(remaining_guards)
+    
+    rotation = []
+    for i, point in enumerate(duty_points):
+        name = remaining_guards[i] if i < len(remaining_guards) else "OFF / BUFFER"
+        rotation.append({"Point": point, "Staff Name": name})
+    return rotation, reception
 
-def generate_rotation():
-    try:
-        # Read sheet with UTF-8 encoding
-        df = pd.read_csv(url, encoding='utf-8')
-        
-        # Taking Column B (index 1) which has names, from row 5 to 49
-        # pandas index-la Row 5 is index 3 or 4 depending on header
-        all_staff = df.iloc[3:48, 1].dropna().tolist()
-        all_staff = [str(name).strip().upper() for name in all_staff]
-        
-        # Remove Receptionists from Main Pool
-        main_guard_pool = [name for name in all_staff if name not in receptionists_pool]
-        
-        # Pick 2 for Reception
-        today_receptionists = random.sample(receptionists_pool, 2)
-        
-        # Shuffle Main Guards
-        random.shuffle(main_guard_pool)
-        
-        # Tuesday Wellness Check
-        today = datetime.now().strftime('%A')
-        tuesday_person = None
-        if today == "Tuesday" and len(main_guard_pool) > 0:
-            tuesday_person = main_guard_pool.pop(0)
-
-        # Assign 12 Points
-        final_rotation = []
-        for i, point in enumerate(duty_points):
-            name = main_guard_pool[i] if i < len(main_guard_pool) else "OFF / BUFFER"
-            final_rotation.append({"Point": point, "Staff Name": name})
-            
-        return final_rotation, today_receptionists, tuesday_person
-    except Exception as e:
-        return str(e), [], None
-
-# --- UI ---
-st.set_page_config(page_title="Mathalamparai Duty Chart", layout="wide")
+# --- UI Setup ---
+st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 st.title("🛡️ Mathalamparai Daily Duty Rotation")
 
-if st.button('Generate New Random Rotation'):
-    rotation, reception, tuesday_spl = generate_rotation()
-    
-    if isinstance(rotation, str):
-        st.error(f"Error reading sheet: {rotation}")
-        st.info("Tip: Make sure the Google Sheet is shared with 'Anyone with the link' as Viewer.")
-    else:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("🛎️ Reception Duty")
-            for i, r_name in enumerate(reception):
-                st.info(f"Receptionist {i+1}: **{r_name}**")
-        with col2:
-            if tuesday_spl:
-                st.warning(f"📅 Tuesday Special: **{tuesday_spl}** (Wellness Duty)")
-            else:
-                st.success(f"Today is {datetime.now().strftime('%A')} - Normal Routine")
+# Sidebar for Date Selection
+st.sidebar.header("Settings")
+selected_date = st.sidebar.date_input("Select Date", datetime.now())
+day_to_check = str(selected_date.day)
 
-        st.divider()
-        st.subheader("📍 Main Guard Rotation")
-        st.table(pd.DataFrame(rotation))
+if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
+    try:
+        df = pd.read_csv(url)
+        date_col = None
+        for col in df.columns:
+            if str(col).strip() == day_to_check:
+                date_col = col
+                break
+        
+        if date_col:
+            shift_data = {"A": [], "B": [], "C": []}
+            for index, row in df.iloc[3:48].iterrows():
+                name = str(row.iloc[1]).strip().upper()
+                shift_val = str(row[date_col]).strip().upper()
+                if shift_val in shift_data:
+                    shift_data[shift_val].append(name)
+            
+            for s_name in ["A", "B", "C"]:
+                st.subheader(f"📅 {s_name} SHIFT")
+                rot, rec = generate_shift_rotation(shift_data[s_name])
+                if not rot and not rec:
+                    st.write(f"No staff assigned for Shift {s_name}")
+                else:
+                    c1, c2 = st.columns([1, 3])
+                    with c1:
+                        st.write("**Receptionists:**")
+                        for r in rec: st.success(r)
+                    with c2:
+                        st.table(pd.DataFrame(rot))
+                st.divider()
+        else:
+            st.error(f"Date {day_to_check} not found in Sheet columns!")
+    except Exception as e:
+        st.error(f"Error: {e}")
