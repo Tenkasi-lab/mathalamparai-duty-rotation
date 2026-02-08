@@ -64,12 +64,14 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
         else:
             point_assignments[point] = "OFF / BUFFER"
 
+    # Vacant Priority 2: A BLOCK
     if idx < staff_count:
         point_assignments["9. A BLOCK"] = final_guard_pool[idx]['name']
         idx += 1
     else:
         point_assignments["9. A BLOCK"] = "VACANT"
 
+    # Vacant Priority 1: SECOND GATE
     if idx < staff_count:
         point_assignments["3. SECOND GATE"] = final_guard_pool[idx]['name']
         idx += 1
@@ -110,20 +112,22 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                     name_cell = str(df_raw.iloc[i, 1]).strip().upper()
                     status_cell = str(df_raw.iloc[i, date_col_idx]).strip().upper()
                     
-                    if name_cell and name_cell not in ["NAME", "STAFF NAME", "NAN"]:
-                        # CHECK FOR SUPERVISORS FIRST
+                    if name_cell and name_cell not in ["NAME", "STAFF NAME", "NAN", "MATHALAMPARA"]:
+                        # CHECK FOR SUPERVISORS
                         if any(sup in name_cell for sup in supervisors_pool):
                             if status_cell in ["A", "B", "C"]:
                                 supervisors_present.append(f"{name_cell} ({status_cell})")
-                            continue # Skip to next loop, don't add to guard shift_data
+                            continue
 
-                        if status_cell in ["A", ",B", "C"]:
+                        # FIXED: Removed extra comma in shift check
+                        if status_cell in ["A", "B", "C"]:
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
                         elif status_cell == "W/O":
                             week_offs.append(name_cell)
                         elif status_cell == "L":
                             on_leave.append(name_cell)
 
+            # Sidebar Summary
             st.sidebar.markdown("---")
             st.sidebar.subheader("📊 Summary")
             if supervisors_present:
