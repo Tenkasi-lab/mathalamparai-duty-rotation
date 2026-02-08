@@ -14,7 +14,7 @@ url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sh
 receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
 wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
 
-# 12 Regular Points (Wellness will be handled separately in logic)
+# Regular Points
 regular_duty_points = [
     "1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", 
     "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", 
@@ -26,22 +26,20 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
     
     random.shuffle(staff_with_ids)
     
-    # 1. Wellness Duty Logic (Point 13)
+    # 1. Wellness Duty Logic
     wellness_person = None
     present_specialists = [s for s in staff_with_ids if any(sp in s['name'] for sp in wellness_specialists)]
     
     if present_specialists:
         wellness_person = present_specialists[0]
     else:
-        # If no specialist, pick any available guard (not receptionist)
         potential_guards = [s for s in staff_with_ids if not any(r in s['name'] for r in receptionists_pool)]
         if potential_guards:
             wellness_person = random.choice(potential_guards)
             
-    # Pool after taking wellness person
     pool_after_wellness = [s for s in staff_with_ids if s['id'] != (wellness_person['id'] if wellness_person else -1)]
 
-    # 2. Reception Logic (Weekend 1, Weekday 2)
+    # 2. Reception Logic
     needed_reception = 1 if is_weekend else 2
     reception_pool = [s for s in pool_after_wellness if any(r in s['name'] for r in receptionists_pool)]
     
@@ -51,11 +49,42 @@ def generate_shift_rotation(staff_with_ids, is_weekend):
     final_guard_pool = [s for s in pool_after_wellness if s not in selected_reception]
     random.shuffle(final_guard_pool)
 
-    # 3. Assign 12 Regular Points
+    # 3. Vacant Priority Logic
+    # Inga staff count-ah check panni points-ah decide pannuvom
+    staff_count = len(final_guard_pool)
+    current_duty_list = regular_duty_points.copy()
+    
+    # Staff kammiya irundha points-ah empty-ah viduvom
+    point_assignments = {}
+    
+    # Step 1: Priority Vacant Points
+    priority_vacant = ["3. SECOND GATE", "9. A BLOCK"]
+    
+    # Remaining points that MUST be filled first
+    must_fill_points = [p for p in current_duty_list if p not in priority_vacant]
+    
     rotation = []
-    for i, point in enumerate(regular_duty_points):
-        name = final_guard_pool[i]['name'] if i < len(final_guard_pool) else "OFF / BUFFER"
-        rotation.append({"Point": point, "Staff Name": name})
+    
+    # Assigning to MUST-FILL points first
+    idx = 0
+    for point in must_fill_points:
+        if idx < staff_count:
+            point_assignments[point] = final_guard_pool[idx]['name']
+            idx += 1
+        else:
+            point_assignments[point] = "OFF / BUFFER"
+
+    # Now assigning to Priority Vacant points if staff still available
+    for point in priority_vacant:
+        if idx < staff_count:
+            point_assignments[point] = final_guard_pool[idx]['name']
+            idx += 1
+        else:
+            point_assignments[point] = "VACANT (LOW PRIORITY)"
+
+    # Organizing rotation list to maintain original order 1-12
+    for point in regular_duty_points:
+        rotation.append({"Point": point, "Staff Name": point_assignments.get(point, "OFF / BUFFER")})
         
     return rotation, [s['name'] for s in selected_reception], (wellness_person['name'] if wellness_person else "NOT ASSIGNED")
 
@@ -80,7 +109,6 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
 
         if date_col_idx is not None:
             shift_data = {"A": [], "B": [], "C": []}
-            # Scanner Range A1 to A59
             for i in range(0, 60): 
                 if i < len(df_raw):
                     name_cell = str(df_raw.iloc[i, 1]).strip().upper()
@@ -93,8 +121,6 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                 if not shift_data[s]: continue
                 st.divider()
                 st.header(f"📅 {s} SHIFT")
-                
-                # FIX: Unpacking 3 values now
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend)
                 
                 c1, c2, c3 = st.columns([1, 2, 1])
