@@ -76,6 +76,7 @@ def generate_shift_rotation(staff_with_ids, is_weekend, selected_date):
 # --- UI Setup ---
 st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
+# PDF Print Optimization Fix
 st.markdown("""
     <style>
     @media print {
@@ -106,7 +107,7 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
 
         if date_col_idx is not None:
             shift_data = {"A": [], "B": [], "C": []}
-            week_offs, on_leave, supervisors_present = [], [], []
+            week_offs, on_leave, supervisors_on_duty = [], [], []
 
             for i in range(0, 81): 
                 if i < len(df_raw):
@@ -114,24 +115,21 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                     status_cell = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
                     
                     if name_cell and name_cell not in ["NAME", "STAFF NAME", "NAN", "MATHALAMPARA"]:
-                        # 1. Week Off / Leave
                         if status_cell == "WO" or status_cell == "W/O" or "OFF" in status_cell:
                             week_offs.append(name_cell)
                         elif status_cell == "L" or "LEAVE" in status_cell:
                             on_leave.append(name_cell)
-                        # 2. Supervisor Logic
                         elif any(sup in name_cell for sup in supervisors_pool):
                             if status_cell in ["A", "B", "C"]:
-                                supervisors_present.append(f"{name_cell} ({status_cell})")
-                        # 3. Guard Shifts
+                                supervisors_on_duty.append(f"{name_cell} ({status_cell})")
                         elif status_cell in ["A", "B", "C"]:
                             shift_data[status_cell].append({'id': i, 'name': name_cell})
 
             # --- Sidebar Summary ---
             st.sidebar.markdown("---")
             st.sidebar.subheader("📊 Summary")
-            if supervisors_present:
-                st.sidebar.success(f"👨‍💼 **Supervisors ({len(supervisors_present)}):**\n" + "\n".join([f"- {n}" for n in supervisors_present]))
+            if supervisors_on_duty:
+                st.sidebar.success(f"👨‍💼 **Supervisors ({len(supervisors_on_duty)}):**\n" + "\n".join([f"- {n}" for n in supervisors_on_duty]))
             if week_offs:
                 st.sidebar.info(f"🏖️ **Week Off ({len(week_offs)}):**\n" + "\n".join([f"- {n}" for n in week_offs]))
             if on_leave:
@@ -146,7 +144,7 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                 st.write(f"### 📅 {s} SHIFT - {selected_date.strftime('%d-%b-%Y')}")
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 
-                # Available names for this shift
+                # Dropdown Options
                 names_for_dropdown = [stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"]
 
                 c1, c2, c3 = st.columns([1, 3, 1])
@@ -155,10 +153,9 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
                     for r in rec: st.info(r)
                 with c2:
                     st.write("**📍 Regular Duty (Select Name to Edit)**")
-                    df_rot = pd.DataFrame(rot)
-                    # FIXED: Dropdown Selection Column
+                    # FIXED: Selectbox column configuration
                     st.data_editor(
-                        df_rot,
+                        pd.DataFrame(rot),
                         column_config={
                             "Staff Name": st.column_config.SelectboxColumn(
                                 "Staff Name",
