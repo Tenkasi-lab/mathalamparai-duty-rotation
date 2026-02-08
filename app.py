@@ -16,21 +16,23 @@ duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PAR
 def generate_shift_rotation(staff_with_ids, is_weekend, is_tuesday):
     if not staff_with_ids: return [], [], None
     
-    # Shuffle all staff first
-    random.shuffle(staff_with_ids)
+    # 1. First, Filter out Week Off (W/O)
+    active_staff = [s for s in staff_with_ids if s['status'] not in ["W/O", "OFF"]]
+    random.shuffle(active_staff)
     
-    # 1. Tuesday Wellness Logic (Pick 1 from guards, not receptionists)
+    # 2. Tuesday Wellness Logic
     wellness_person = None
     if is_tuesday:
-        potential_wellness = [s for s in staff_with_ids if not any(r in s['name'] for r in receptionists_pool)]
+        # Pick 1 from active guards for Wellness
+        potential_wellness = [s for s in active_staff if not any(r in s['name'] for r in receptionists_pool)]
         if potential_wellness:
             wellness_person = random.choice(potential_wellness)
-            staff_with_ids = [s for s in staff_with_ids if s['id'] != wellness_person['id']]
+            active_staff = [s for s in active_staff if s['id'] != wellness_person['id']]
 
-    # 2. Reception Logic
+    # 3. Reception Logic
     needed_reception = 1 if is_weekend else 2
-    reception_pool = [s for s in staff_with_ids if any(r in s['name'] for r in receptionists_pool)]
-    guard_pool = [s for s in staff_with_ids if s not in reception_pool]
+    reception_pool = [s for s in active_staff if any(r in s['name'] for r in receptionists_pool)]
+    guard_pool = [s for s in active_staff if s not in reception_pool]
     
     selected_reception = []
     if reception_pool:
@@ -42,8 +44,8 @@ def generate_shift_rotation(staff_with_ids, is_weekend, is_tuesday):
             extra = random.sample(guard_pool, min(needed, len(guard_pool)))
             selected_reception.extend(extra)
 
-    # 3. Final Duty Points (All remaining staff)
-    final_pool = [s for s in staff_with_ids if s not in selected_reception]
+    # 4. Final Duty Assignment
+    final_pool = [s for s in active_staff if s not in selected_reception]
     random.shuffle(final_pool)
     
     rotation = []
@@ -61,7 +63,7 @@ day_str = str(selected_date.day)
 is_weekend = selected_date.weekday() >= 5 
 is_tuesday = selected_date.weekday() == 1 
 
-if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
+if st.button(f'Generate Rotation for {selected_date.strftime("%d-%m-%Y")}'):
     try:
         df_raw = pd.read_csv(url, header=None)
         date_col_idx = None
@@ -74,13 +76,18 @@ if st.button(f'Generate Rotation for {selected_date.strftime("%d-%b-%Y")}'):
 
         if date_col_idx is not None:
             shift_data = {"A": [], "B": [], "C": []}
-            for i in range(4, 55): # A5 to A55
+            # Range updated to A5 to A70
+            for i in range(4, 70): 
                 if i < len(df_raw):
                     name = str(df_raw.iloc[i, 1]).strip().upper()
-                    shift_val = str(df_raw.iloc[i, date_col_idx]).strip().upper()
-                    if shift_val in shift_data:
-                        # Storing name with index as unique ID
-                        shift_data[shift_val].append({'id': i, 'name': name})
+                    status_val = str(df_raw.iloc[i, date_col_idx]).strip().upper()
+                    
+                    # Agar status A, B, or C ah irundha add pannuvom
+                    if status_val in ["A", "B", "C"]:
+                        shift_data[status_val].append({'id': i, 'name': name, 'status': status_val})
+                    # Week off ah irundha attendance list-la irundhu ignore pannidum logic
+                    elif status_val == "W/O":
+                        continue
 
             for s in ["A", "B", "C"]:
                 st.divider()
