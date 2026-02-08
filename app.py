@@ -91,12 +91,6 @@ st.markdown("""
     .shift-c { background: linear-gradient(135deg, #059669, #34d399); }
     .info-card { background-color: white; padding: 18px; border-radius: 12px; border-top: 4px solid #4f46e5; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 10px; }
     
-    /* PRINT BUTTON STYLE */
-    .print-btn {
-        background-color: #4f46e5; color: white; padding: 10px 20px;
-        border-radius: 8px; cursor: pointer; border: none; font-weight: bold;
-    }
-
     @media print {
         .stButton, .stSidebar, footer, header, .no-print {display: none !important;}
         .main {margin: 0 !important; padding: 0 !important; background: white !important;}
@@ -108,7 +102,7 @@ st.markdown("""
 
 st.title("🛡️ Mathalamparai Duty System")
 
-# Sidebar
+# Sidebar Controls
 selected_date = st.sidebar.date_input("Select Date", datetime.now())
 day_str = str(selected_date.day)
 is_weekend = selected_date.weekday() >= 5 
@@ -119,8 +113,10 @@ col1, col2 = st.columns([1, 1])
 with col1:
     gen_btn = st.button(f'🚀 Generate Rotation')
 with col2:
-    # PRINT BUTTON INJECTION
-    st.markdown('<button class="print-btn" onclick="window.print()">🖨️ Print to PDF</button>', unsafe_allow_html=True)
+    # UPDATED: More robust print button using Javascript
+    st.components.v1.html("""
+        <button style="background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-family: sans-serif;" onclick="window.parent.print()">🖨️ Print to PDF</button>
+    """, height=60)
 
 if gen_btn:
     try:
@@ -164,10 +160,8 @@ if gen_btn:
 
             for s in display_list:
                 if not shift_data[s]: continue
-                
                 color_class = f"shift-{s.lower()}"
                 st.markdown(f'<div class="shift-header {color_class}">📅 {s} SHIFT - {selected_date.strftime("%d-%b-%Y")}</div>', unsafe_allow_html=True)
-                
                 rot, rec, wellness = generate_shift_rotation(shift_data[s], is_weekend, selected_date)
                 dropdown_options = sorted([stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF / BUFFER"])
 
