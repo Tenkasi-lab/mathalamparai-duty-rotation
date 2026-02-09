@@ -43,27 +43,41 @@ if check_password():
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
 
-    # --- 4. ADVANCED CSS (Sidebar Fixes) ---
+    # --- 4. ADVANCED CSS (Sidebar Colors Fix) ---
     st.markdown("""
         <style>
         .stApp { background-color: #f8fafc; }
         
-        /* --- SIDEBAR VISIBILITY FIX --- */
+        /* 1. SIDEBAR BACKGROUND */
         [data-testid="stSidebar"] { background-color: #0f172a !important; }
         
-        /* Force all sidebar labels to be White */
-        [data-testid="stSidebar"] label { 
+        /* 2. ALL LABELS (Select Date, Select Shift, Headers) -> WHITE */
+        [data-testid="stSidebar"] label, 
+        [data-testid="stSidebar"] .stMarkdown p,
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3 { 
             color: #ffffff !important; 
-            font-size: 14px !important;
-            font-weight: bold !important;
         }
         
-        /* Fix the Dropdown text color */
-        [data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] div {
-            color: white !important;
+        /* 3. INPUT BOXES & DROPDOWNS (White Box, BLACK Text) */
+        [data-testid="stSidebar"] input {
+            color: black !important;
+        }
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div {
+            background-color: white !important;
+            color: black !important;
+        }
+        /* Force text inside dropdown to be BLACK */
+        [data-testid="stSidebar"] div[data-baseweb="select"] span {
+            color: black !important; 
+        }
+        /* Arrow icon in dropdown */
+        [data-testid="stSidebar"] div[data-baseweb="select"] svg {
+            fill: black !important;
         }
 
-        /* LOGOUT BUTTON (RED) */
+        /* 4. LOGOUT BUTTON (Red) */
         [data-testid="stSidebar"] .stButton > button {
             background-color: #ef4444 !important;
             color: white !important;
@@ -71,18 +85,14 @@ if check_password():
             font-weight: bold !important;
         }
 
-        /* EDIT MODE CHECKBOX (GOLD) */
-        [data-testid="stSidebar"] .stCheckbox label {
-            color: #facc15 !important;
+        /* 5. ADMIN MODE CHECKBOX (Gold Text) */
+        [data-testid="stSidebar"] .stCheckbox label span {
+            color: #facc15 !important; /* Gold Color */
+            font-weight: bold !important;
             font-size: 16px !important;
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 8px;
-            display: block;
-            width: 100%;
         }
 
-        /* --- PRINT OPTIMIZATION (One Page) --- */
+        /* --- PRINT OPTIMIZATION --- */
         @media print {
             .no-print, [data-testid="stSidebar"], .stButton, header, footer { display: none !important; }
             .main { padding: 0 !important; }
@@ -109,25 +119,25 @@ if check_password():
     # --- 5. SIDEBAR CONTROLS ---
     st.sidebar.markdown("<h2 style='color: #facc15; text-align: center;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
     
-    # 1. Logout (Red Button)
+    # 1. Logout
     if st.sidebar.button("🔒 EXIT SYSTEM", use_container_width=True):
         st.session_state["password_correct"] = False
         st.rerun()
 
     st.sidebar.divider()
 
-    # 2. Date & Shift Selection
+    # 2. Date & Shift
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
     
     st.sidebar.divider()
 
-    # 3. Admin Control (Gold Text)
+    # 3. Admin Control (Gold Text Fix)
     st.sidebar.markdown("<b style='color:white; font-size:14px;'>ADMIN CONTROLS</b>", unsafe_allow_html=True)
     edit_mode = st.sidebar.checkbox("🚀 ENABLE EDIT MODE")
 
     # --- 6. MAIN CONTENT ---
-    # Header with Time
+    # Header
     current_time = datetime.now().strftime("%I:%M %p")
     st.markdown(f"""
         <div class='main-header no-print'>
