@@ -3,10 +3,10 @@ import pandas as pd
 from datetime import datetime
 import urllib.parse
 
-# --- 1. FULL APP LOCK LOGIC (Dynamic Password) ---
+# --- 1. FULL APP LOCK LOGIC (Daily Pin - No Hint) ---
 def check_password():
     def password_entered():
-        # Inniku date thaan password (Feb 09 => '0902')
+        # Inniku date thaan password (e.g., Feb 09 => '0902')
         correct_pin = datetime.now().strftime("%d%m")
         if st.session_state["password"] == correct_pin:
             st.session_state["password_correct"] = True
@@ -16,19 +16,19 @@ def check_password():
 
     if "password_correct" not in st.session_state:
         st.markdown("<h2 style='text-align: center;'>🛡️ Mathalamparai Duty System</h2>", unsafe_allow_html=True)
-        st.text_input("Enter Daily PIN (DDMM) to Access", type="password", on_change=password_entered, key="password")
+        st.text_input("Enter Daily PIN to Access", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
         st.markdown("<h2 style='text-align: center;'>🛡️ Mathalamparai Duty System</h2>", unsafe_allow_html=True)
-        st.text_input("Enter Daily PIN (DDMM) to Access", type="password", on_change=password_entered, key="password")
-        st.error("❌ Invalid PIN! (Hint: Use Today's Date DDMM)")
+        st.text_input("Enter Daily PIN to Access", type="password", on_change=password_entered, key="password")
+        # HINT REMOVED: Just showing error now
+        st.error("❌ Invalid PIN!") 
         return False
     else:
         return True
 
 # --- 2. START THE APP ONLY IF LOGGED IN ---
 if check_password():
-    # Logout option in sidebar
     if st.sidebar.button("🔒 Logout System"):
         st.session_state["password_correct"] = False
         st.rerun()
@@ -81,6 +81,7 @@ if check_password():
     # --- UI Setup ---
     st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
+    # FIXED: unsafe_allow_html=True used to avoid TypeError
     st.markdown("""
         <style>
         .stApp { background: #f1f5f9; }
@@ -97,7 +98,6 @@ if check_password():
 
     st.title("🛡️ Mathalamparai Duty System")
 
-    # Sidebar Controls
     selected_date = st.sidebar.date_input("Select Date", datetime.now())
     day_str = str(selected_date.day)
     target_shift = st.sidebar.selectbox("Select Shift to View/Print", ["A Shift", "B Shift", "C Shift", "All Shifts"])
@@ -106,6 +106,7 @@ if check_password():
     with col1:
         gen_btn = st.button('🚀 Generate Rotation')
     with col2:
+        # Working Print Button
         st.components.v1.html('<button style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ Print to PDF</button>', height=60)
 
     if gen_btn:
@@ -139,6 +140,12 @@ if check_password():
                         elif status in ["A", "B", "C"]:
                             shift_data[status].append({'id': i, 'name': name})
 
+                # --- Sidebar Summary ---
+                st.sidebar.markdown("---")
+                st.sidebar.subheader("📊 Summary")
+                st.sidebar.info(f"🏖️ **Week Off:**\n" + "\n".join([f"- {n}" for n in week_offs]) if week_offs else "None")
+                st.sidebar.warning(f"🏥 **On Leave:**\n" + "\n".join([f"- {n}" for n in on_leave]) if on_leave else "None")
+
                 display_list = ["A", "B", "C"] if target_shift == "All Shifts" else [target_shift[0]]
 
                 for s in display_list:
@@ -147,11 +154,11 @@ if check_password():
                     rot, rec, wellness = generate_shift_rotation(shift_data[s], (selected_date.weekday() >= 5), selected_date)
                     dropdown_options = sorted([stf['name'] for stf in shift_data[s]] + ["VACANT", "OFF"])
 
-                    # UI DISPLAY
+                    # Shift Header
                     color_class = f"shift-{s.lower()}"
                     st.markdown(f'<div class="shift-header {color_class}">📅 {s} SHIFT - {selected_date.strftime("%d-%b-%Y")}</div>', unsafe_allow_html=True)
                     
-                    # PRINT SUMMARY
+                    # PRINT SUMMARY (Supervisor, Reception, Wellness)
                     st.markdown(f"""
                     <div class="summary-box">
                         <b>👨‍💼 Supervisor:</b> {", ".join(supervisors_by_shift[s]) if supervisors_by_shift[s] else "N/A"} <br>
@@ -160,22 +167,22 @@ if check_password():
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # DATA TABLE
+                    # Main Duty Table with Dropdown
                     st.data_editor(
                         pd.DataFrame(rot),
                         column_config={"Staff Name": st.column_config.SelectboxColumn("Staff Name", options=dropdown_options, width="large")},
                         hide_index=True, use_container_width=True, key=f"editor_{s}"
                     )
                     
-                    # PRINT LEAVE BOX
+                    # NEW: LEAVE & WEEK OFF DETAILS (Now shows up in PRINT too)
                     st.markdown(f"""
                     <div class="leave-box">
-                        <b>🏖️ Week Off (Today):</b> {", ".join(week_offs) if week_offs else "None"} <br>
-                        <b>🏥 On Leave (Today):</b> {", ".join(on_leave) if on_leave else "None"}
+                        <b>🏖️ Today's Week Off:</b> {", ".join(week_offs) if week_offs else "None"} <br>
+                        <b>🏥 Today's On Leave:</b> {", ".join(on_leave) if on_leave else "None"}
                     </div>
                     """, unsafe_allow_html=True)
                     st.divider()
             else:
-                st.error("Date column not found in Google Sheet!")
+                st.error("Date column not found in Sheet!")
         except Exception as e:
             st.error(f"Error: {e}")
