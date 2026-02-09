@@ -31,7 +31,7 @@ def check_password():
     return True
 
 if check_password():
-    # --- 3. ALL VARIABLES DEFINED FIRST (Fixes definition error) ---
+    # --- 3. VARIABLES ---
     sheet_id = "1v95g8IVPITIF4-mZghIvh1wyr5YUxHGmgK3jyWhtuEQ"
     sheet_name = "FEBRUARY-2026" 
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"
@@ -39,72 +39,102 @@ if check_password():
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
-    
     regular_duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
 
-    # --- 4. ADVANCED UI & PRINT CSS ---
+    # --- 4. ADVANCED CSS (Sidebar Fixes) ---
     st.markdown("""
         <style>
         .stApp { background-color: #f8fafc; }
         
-        /* SIDEBAR FONT COLOR FIX */
-        [data-testid="stSidebar"] { background-color: #0f172a !important; color: white !important; }
-        [data-testid="stSidebar"] label { color: white !important; font-weight: bold !important; font-size: 14px !important; }
+        /* --- SIDEBAR VISIBILITY FIX --- */
+        [data-testid="stSidebar"] { background-color: #0f172a !important; }
         
-        /* ADMIN CONTROLS BOX */
-        .admin-box {
-            background-color: #ffffff;
-            padding: 15px;
-            border-radius: 12px;
-            border: 2px solid #3b82f6;
-            color: #0f172a !important;
-            margin-top: 20px;
+        /* Force all sidebar labels to be White */
+        [data-testid="stSidebar"] label { 
+            color: #ffffff !important; 
+            font-size: 14px !important;
+            font-weight: bold !important;
         }
-        .admin-box label { color: #0f172a !important; }
+        
+        /* Fix the Dropdown text color */
+        [data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] div {
+            color: white !important;
+        }
 
-        /* ONE PAGE PRINT OPTIMIZATION */
+        /* LOGOUT BUTTON (RED) */
+        [data-testid="stSidebar"] .stButton > button {
+            background-color: #ef4444 !important;
+            color: white !important;
+            border: 1px solid #b91c1c !important;
+            font-weight: bold !important;
+        }
+
+        /* EDIT MODE CHECKBOX (GOLD) */
+        [data-testid="stSidebar"] .stCheckbox label {
+            color: #facc15 !important;
+            font-size: 16px !important;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            display: block;
+            width: 100%;
+        }
+
+        /* --- PRINT OPTIMIZATION (One Page) --- */
         @media print {
             .no-print, [data-testid="stSidebar"], .stButton, header, footer { display: none !important; }
             .main { padding: 0 !important; }
             .stApp { background: white !important; }
             .main-header { padding: 10px !important; margin-bottom: 5px !important; }
-            .shift-banner { padding: 8px !important; font-size: 18px !important; margin-bottom: 5px !important; }
+            .shift-banner { padding: 5px !important; font-size: 16px !important; margin-bottom: 5px !important; }
             .stat-row { gap: 5px !important; margin-bottom: 5px !important; }
-            .stat-card { padding: 8px !important; font-size: 11px !important; border-bottom: 2px solid #334155 !important; }
-            table { font-size: 10px !important; width: 100% !important; border-collapse: collapse !important; }
+            .stat-card { padding: 5px !important; font-size: 10px !important; border-bottom: 2px solid #334155 !important; }
+            table { font-size: 9px !important; width: 100% !important; border-collapse: collapse !important; }
             td, th { padding: 2px !important; border: 1px solid #ddd !important; }
         }
 
-        .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; }
+        /* Header Style */
+        .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
         .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; }
         .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
         .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
         .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
-        
         .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
         .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
         </style>
         """, unsafe_allow_html=True)
 
-    # --- 5. SIDEBAR ---
-    st.sidebar.markdown("<h2 style='color: #facc15;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
+    # --- 5. SIDEBAR CONTROLS ---
+    st.sidebar.markdown("<h2 style='color: #facc15; text-align: center;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
+    
+    # 1. Logout (Red Button)
     if st.sidebar.button("🔒 EXIT SYSTEM", use_container_width=True):
         st.session_state["password_correct"] = False
         st.rerun()
 
+    st.sidebar.divider()
+
+    # 2. Date & Shift Selection
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
     
-    # ADMIN BOX IN SIDEBAR
-    st.sidebar.markdown("<div class='admin-box'>", unsafe_allow_html=True)
-    st.sidebar.markdown("<b style='color: #0f172a;'>🛠️ ADMIN CONTROLS</b>", unsafe_allow_html=True)
+    st.sidebar.divider()
+
+    # 3. Admin Control (Gold Text)
+    st.sidebar.markdown("<b style='color:white; font-size:14px;'>ADMIN CONTROLS</b>", unsafe_allow_html=True)
     edit_mode = st.sidebar.checkbox("🚀 ENABLE EDIT MODE")
-    st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
     # --- 6. MAIN CONTENT ---
-    st.markdown("<div class='main-header no-print'><h1>🛡️ MATHALAMPARAI DUTY DASHBOARD</h1></div>", unsafe_allow_html=True)
+    # Header with Time
+    current_time = datetime.now().strftime("%I:%M %p")
+    st.markdown(f"""
+        <div class='main-header no-print'>
+            <div style='font-size:20px;'>🛡️ MATHALAMPARAI DUTY DASHBOARD</div>
+            <div style='font-size:16px; color:#facc15;'>🕒 {current_time}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -164,7 +194,7 @@ if check_password():
                 else:
                     st.table(st.session_state.current_df)
 
-                st.markdown(f"""<div style='background: white; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 13px; margin-top: 10px;'>
+                st.markdown(f"""<div class="footer-info" style='background: white; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 13px; margin-top: 10px;'>
                     <span>🏖️ <b>WEEK OFF:</b> {", ".join(week_offs) if week_offs else "NONE"}</span>
                     <span>🏥 <b>ON LEAVE:</b> {", ".join(on_leave) if on_leave else "NONE"}</span>
                 </div>""", unsafe_allow_html=True)
