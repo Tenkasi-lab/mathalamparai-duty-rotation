@@ -8,9 +8,10 @@ import pytz # Timezone fix
 if "password_correct" not in st.session_state:
     st.session_state["password_correct"] = False
 
-# --- 2. SINGLE PASSWORD LOGIC ---
+# --- 2. PASSWORD LOGIC (UPDATED) ---
 def check_password():
     def password_entered():
+        # UNGA PUTHU PASSWORD
         if st.session_state["password"] == "Sec@2026": 
             st.session_state["password_correct"] = True
             del st.session_state["password"]
@@ -40,8 +41,6 @@ if check_password():
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
-    
-    # 1 to 12 Points
     regular_duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
@@ -105,8 +104,6 @@ if check_password():
     secret_edit = st.sidebar.checkbox(".", help="Secret Admin Mode") 
 
     # --- 6. MAIN LOGIC ---
-    
-    # TIME FIX (IST)
     ist = pytz.timezone('Asia/Kolkata')
     current_time = datetime.now(ist).strftime("%I:%M %p")
     
@@ -145,53 +142,39 @@ if check_password():
                 if name and name not in ["NAME", "NAN"]:
                     if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
                     elif status in ["L", "LEAVE"]: on_leave.append(name)
-                    
-                    # GENERAL DUTY LOGIC
                     elif status in ["G", "GEN", "GENERAL"]:
-                        if any(s in name for s in supervisors_pool):
-                            general_supervisor = name # Sunday Supervisor
-                        else:
-                            general_staff.append(name) # Old Car Parking Staff
-                    
+                        if any(s in name for s in supervisors_pool): general_supervisor = name
+                        else: general_staff.append(name)
                     elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
                     elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
 
-            # Wellness Logic (Tuesday Reliever)
             wellness = "VACANT"
             specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
             
-            if specialist_present:
-                wellness = specialist_present
-            elif selected_date.weekday() == 1: # Tuesday
+            if specialist_present: wellness = specialist_present
+            elif selected_date.weekday() == 1: 
                 potential_relievers = [s['name'] for s in staff_on_duty if not any(r in s['name'] for r in receptionists_pool)]
                 if potential_relievers: wellness = potential_relievers[0]
             
             recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
             guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
 
-            # Generate Rotation (1-12)
             rot_data = [{"Point": p, "Staff Name": (guards[idx % len(guards)]['name'] if guards else "VACANT")} for idx, p in enumerate(regular_duty_points)]
             
-            # ADD GENERAL DUTY (13, 14, 15...)
+            # ADD GENERAL DUTY SPLIT
             gen_start_point = 13
             for g_staff in general_staff:
                 rot_data.append({"Point": f"{gen_start_point}. OLD CAR PARKING (General)", "Staff Name": g_staff})
                 gen_start_point += 1
 
-            # Prepare DataFrame
             df_display = pd.DataFrame(rot_data)
-            
-            # FIX SERIAL NUMBER (Start from 1)
-            if not df_display.empty:
-                df_display.index = df_display.index + 1
+            if not df_display.empty: df_display.index = df_display.index + 1
 
-            # Update Session State
             if 'current_date' not in st.session_state or st.session_state.current_date != selected_date or st.session_state.current_shift != target_shift:
                 st.session_state.current_df = df_display
                 st.session_state.current_date = selected_date
                 st.session_state.current_shift = target_shift
 
-            # RENDER DASHBOARD
             st.markdown(f'<div class="shift-banner {shift_code.lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
             gen_sup_display = f"<br><span style='color:#b91c1c; font-size:11px;'>(GEN: {general_supervisor})</span>" if general_supervisor else ""
@@ -205,18 +188,26 @@ if check_password():
             if secret_edit:
                 st.warning("⚠️ EDIT MODE ACTIVE")
                 dropdown_names = sorted([s['name'] for s in staff_on_duty] + general_staff + ["VACANT", "OFF"])
-                # We need to handle index for editing too
                 edited_df = st.data_editor(st.session_state.current_df, column_config={"Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names)}, use_container_width=True)
                 if st.button("💾 SAVE CHANGES"):
                     st.session_state.current_df = edited_df
-                    st.success("Saved!")
-                    st.rerun()
+                    st.success("Saved!"); st.rerun()
             else:
                 st.table(st.session_state.current_df)
 
-            st.markdown(f"""<div class="footer-info" style='background: white; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 13px; margin-top: 10px;'>
-                <span>🏖️ <b>WEEK OFF:</b> {", ".join(week_offs) if week_offs else "NONE"}</span>
-                <span>🏥 <b>ON LEAVE:</b> {", ".join(on_leave) if on_leave else "NONE"}</span>
+            # --- RED NAMES IN FOOTER ---
+            wo_names = ", ".join(week_offs) if week_offs else "NONE"
+            ol_names = ", ".join(on_leave) if on_leave else "NONE"
+
+            st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
+                <span>
+                    <b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> 
+                    <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span>
+                </span>
+                <span>
+                    <b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> 
+                    <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span>
+                </span>
             </div>""", unsafe_allow_html=True)
         else: st.error("Date column not found.")
     except Exception as e: st.error(f"System Error: {e}")
