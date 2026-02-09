@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import urllib.parse
+import pytz # Timezone fix
 
 # --- 1. SESSION SETUP ---
 if "password_correct" not in st.session_state:
@@ -10,8 +11,7 @@ if "password_correct" not in st.session_state:
 # --- 2. SINGLE PASSWORD LOGIC ---
 def check_password():
     def password_entered():
-        # UNGA FIXED PASSWORD INGA IRUKKU (Maanthikalam)
-        if st.session_state["password"] == "1234": 
+        if st.session_state["password"] == "Sec@2026": 
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
@@ -41,7 +41,7 @@ if check_password():
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
     
-    # 1 to 12 Points (Rotation)
+    # 1 to 12 Points
     regular_duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
@@ -50,23 +50,23 @@ if check_password():
     st.markdown("""
         <style>
         .stApp { background-color: #f8fafc; }
-        
-        /* SIDEBAR FIXES */
         [data-testid="stSidebar"] { background-color: #0f172a !important; }
         [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
         
-        /* DROPDOWN & INPUT TEXT FIX */
+        /* Dropdown & Input Fixes */
         [data-testid="stSidebar"] div[data-baseweb="select"] > div { background-color: white !important; color: black !important; }
         [data-testid="stSidebar"] div[data-baseweb="select"] span { color: black !important; }
         [data-testid="stSidebar"] input { color: black !important; background-color: white !important; }
         
-        /* LOGOUT BUTTON (Red) */
+        /* Logout Button */
         [data-testid="stSidebar"] .stButton > button { background-color: #ef4444 !important; color: white !important; border: 1px solid #b91c1c !important; }
 
-        /* HIDDEN CHECKBOX (Secret Dot) */
+        /* Hidden Checkbox */
         [data-testid="stSidebar"] .stCheckbox label span { color: #334155 !important; font-size: 10px !important; }
 
-        /* PRINT OPTIMIZATION */
+        /* Table Index Fix */
+        .stTable th.row_heading, .stDataFrame th.row_heading { font-weight: bold; font-size: 14px; }
+
         @media print {
             .no-print, [data-testid="stSidebar"], .stButton, header, footer { display: none !important; }
             .main { padding: 0 !important; }
@@ -89,7 +89,7 @@ if check_password():
         </style>
         """, unsafe_allow_html=True)
 
-    # --- 5. SIDEBAR CONTROLS ---
+    # --- 5. SIDEBAR ---
     st.sidebar.markdown("<h2 style='text-align: center; color: white;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
     if st.sidebar.button("🔒 EXIT SYSTEM", use_container_width=True):
         st.session_state["password_correct"] = False
@@ -100,12 +100,16 @@ if check_password():
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
     
-    # SECRET EDIT MODE (Small dot at bottom)
+    # Secret Edit
     st.sidebar.markdown("<br>"*5, unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox(".", help="Secret Admin Mode") 
 
-    # --- 6. MAIN LOGIC (Auto Run) ---
-    current_time = datetime.now().strftime("%I:%M %p")
+    # --- 6. MAIN LOGIC ---
+    
+    # TIME FIX (IST)
+    ist = pytz.timezone('Asia/Kolkata')
+    current_time = datetime.now(ist).strftime("%I:%M %p")
+    
     st.markdown(f"""
         <div class='main-header no-print'>
             <div style='font-size:20px;'>🛡️ MATHALAMPARAI DUTY DASHBOARD</div>
@@ -118,7 +122,6 @@ if check_password():
         st.components.v1.html('<button style="background: #1e293b; color: #facc15; padding: 12px 24px; border-radius: 12px; border: 2px solid #facc15; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ EXPORT TO PDF</button>', height=60)
 
     try:
-        # DATA FETCHING
         df_raw = pd.read_csv(url, header=None)
         day_str = str(selected_date.day)
         date_col_idx = None
@@ -143,7 +146,7 @@ if check_password():
                     if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
                     elif status in ["L", "LEAVE"]: on_leave.append(name)
                     
-                    # LOGIC: Check for General Duty (G or GEN)
+                    # GENERAL DUTY LOGIC
                     elif status in ["G", "GEN", "GENERAL"]:
                         if any(s in name for s in supervisors_pool):
                             general_supervisor = name # Sunday Supervisor
@@ -153,7 +156,7 @@ if check_password():
                     elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
                     elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
 
-            # --- WELLNESS (Tuesday Reliever Logic) ---
+            # Wellness Logic (Tuesday Reliever)
             wellness = "VACANT"
             specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
             
@@ -169,20 +172,28 @@ if check_password():
             # Generate Rotation (1-12)
             rot_data = [{"Point": p, "Staff Name": (guards[idx % len(guards)]['name'] if guards else "VACANT")} for idx, p in enumerate(regular_duty_points)]
             
-            # ADD 13. FIXED OLD CAR PARKING (General Staff)
-            old_car_parking_staff = " & ".join(general_staff) if general_staff else "VACANT"
-            rot_data.append({"Point": "13. OLD CAR PARKING (General)", "Staff Name": old_car_parking_staff})
+            # ADD GENERAL DUTY (13, 14, 15...)
+            gen_start_point = 13
+            for g_staff in general_staff:
+                rot_data.append({"Point": f"{gen_start_point}. OLD CAR PARKING (General)", "Staff Name": g_staff})
+                gen_start_point += 1
+
+            # Prepare DataFrame
+            df_display = pd.DataFrame(rot_data)
+            
+            # FIX SERIAL NUMBER (Start from 1)
+            if not df_display.empty:
+                df_display.index = df_display.index + 1
 
             # Update Session State
             if 'current_date' not in st.session_state or st.session_state.current_date != selected_date or st.session_state.current_shift != target_shift:
-                st.session_state.current_df = pd.DataFrame(rot_data)
+                st.session_state.current_df = df_display
                 st.session_state.current_date = selected_date
                 st.session_state.current_shift = target_shift
 
             # RENDER DASHBOARD
             st.markdown(f'<div class="shift-banner {shift_code.lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
-            # Display Sunday General Supervisor if present
             gen_sup_display = f"<br><span style='color:#b91c1c; font-size:11px;'>(GEN: {general_supervisor})</span>" if general_supervisor else ""
 
             st.markdown(f"""<div class="stat-row">
@@ -191,11 +202,11 @@ if check_password():
                 <div class="stat-card"><small>WELLNESS</small><br><b>{wellness}</b></div>
             </div>""", unsafe_allow_html=True)
 
-            # --- SECRET EDIT MODE ---
             if secret_edit:
                 st.warning("⚠️ EDIT MODE ACTIVE")
                 dropdown_names = sorted([s['name'] for s in staff_on_duty] + general_staff + ["VACANT", "OFF"])
-                edited_df = st.data_editor(st.session_state.current_df, column_config={"Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names)}, hide_index=True, use_container_width=True)
+                # We need to handle index for editing too
+                edited_df = st.data_editor(st.session_state.current_df, column_config={"Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names)}, use_container_width=True)
                 if st.button("💾 SAVE CHANGES"):
                     st.session_state.current_df = edited_df
                     st.success("Saved!")
