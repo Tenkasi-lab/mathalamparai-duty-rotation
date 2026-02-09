@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import urllib.parse
 
-# --- 1. LOGIN LOGIC (No Hint) ---
+# --- 1. PREMIUM LOGIN LOGIC ---
 def check_password():
     def password_entered():
         correct_pin = datetime.now().strftime("%d%m")
@@ -14,18 +14,25 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.markdown("<h2 style='text-align: center;'>🛡️ Mathalamparai Duty System</h2>", unsafe_allow_html=True)
-        st.text_input("Enter Daily PIN to Access", type="password", on_change=password_entered, key="password")
+        st.markdown("""
+            <div style='text-align: center; padding: 50px;'>
+                <h1 style='color: #1e293b; font-size: 40px;'>🛡️</h1>
+                <h2 style='color: #1e293b; font-family: sans-serif;'>Mathalamparai Duty System</h2>
+                <p style='color: #64748b;'>Secure Access Portal</p>
+            </div>
+        """, unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.text_input("Enter Daily PIN (DDMM)", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        st.markdown("<h2 style='text-align: center;'>🛡️ Mathalamparai Duty System</h2>", unsafe_allow_html=True)
-        st.text_input("Enter Daily PIN to Access", type="password", on_change=password_entered, key="password")
-        st.error("❌ Invalid PIN!") 
-        return False
+        st.error("❌ Access Denied: Invalid PIN")
+        st.rerun()
     return True
 
 # --- 2. START APP ---
 if check_password():
+    # Google Sheet Settings
     sheet_id = "1v95g8IVPITIF4-mZghIvh1wyr5YUxHGmgK3jyWhtuEQ"
     sheet_name = "FEBRUARY-2026" 
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"
@@ -40,30 +47,43 @@ if check_password():
         "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"
     ]
 
-    # --- UI Setup ---
     st.set_page_config(page_title="Mathalamparai Duty System", layout="wide")
 
+    # --- ADVANCED PREMIUM CSS ---
     st.markdown("""
         <style>
-        .stApp { background: #f1f5f9; }
-        .shift-header { padding: 12px; border-radius: 10px; color: white; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 10px; }
-        .shift-a { background: #dc2626; }
-        .shift-b { background: #2563eb; }
-        .shift-c { background: #059669; }
+        .stApp { background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); }
+        [data-testid="stSidebar"] { background-color: #0f172a !important; border-right: 1px solid #1e293b; }
         
-        .summary-box { border: 2px solid #000; padding: 12px; margin-bottom: 10px; background-color: #fff; border-radius: 8px; }
-        .duty-box { background-color: white; padding: 5px; border-radius: 8px; }
-        .leave-box { border: 1px dashed #666; padding: 10px; margin-top: 10px; background-color: #fff; font-size: 14px; }
+        /* Shift Header - Modern Gradient */
+        .shift-header { 
+            padding: 20px; border-radius: 15px; color: white; text-align: center; 
+            font-size: 26px; font-weight: bold; margin-bottom: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .shift-a { background: linear-gradient(90deg, #e11d48, #fb7185); }
+        .shift-b { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+        .shift-c { background: linear-gradient(90deg, #059669, #34d399); }
+        
+        /* Summary Banner */
+        .summary-banner {
+            background: white; padding: 15px; border-radius: 12px;
+            border: 1px solid #e2e8f0; margin-bottom: 15px;
+            display: flex; justify-content: space-around; align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Remove Table Scroll */
+        div[data-testid="stTable"] table { width: 100% !important; font-size: 16px !important; }
         
         @media print {
             .no-print, .stButton, [data-testid="stSidebar"] { display: none !important; }
-            .main { padding: 0 !important; }
             .stApp { background: white !important; }
-            .summary-box { border: 2px solid #000 !important; }
         }
         </style>
         """, unsafe_allow_html=True)
 
+    # Sidebar
     if st.sidebar.button("🔒 Logout"):
         st.session_state["password_correct"] = False
         st.rerun()
@@ -71,11 +91,13 @@ if check_password():
     selected_date = st.sidebar.date_input("Select Date", datetime.now())
     target_shift = st.sidebar.selectbox("Select Shift", ["A Shift", "B Shift", "C Shift", "All Shifts"])
 
+    st.markdown("<h2 style='color: #1e293b;'>🛡️ Mathalamparai Duty Dashboard</h2>", unsafe_allow_html=True)
+
     col1, col2 = st.columns([1, 1])
     with col1:
-        gen_btn = st.button('🚀 Generate Rotation')
+        gen_btn = st.button('🚀 Refresh Duty Rotation')
     with col2:
-        st.components.v1.html('<button style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ Print to PDF</button>', height=50)
+        st.components.v1.html('<button style="background: #0f172a; color: white; padding: 12px 24px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="window.parent.print()">🖨️ Print Final Roster (PDF)</button>', height=60)
 
     if gen_btn:
         try:
@@ -111,38 +133,32 @@ if check_password():
                 for s in display_list:
                     if not shift_data[s]: continue
                     
-                    # Logic to pick Receptionists and Wellness
                     wellness_person = next((stf['name'] for stf in shift_data[s] if any(w in stf['name'] for w in wellness_specialists)), "VACANT")
                     recep_list = [stf['name'] for stf in shift_data[s] if any(r in stf['name'] for r in receptionists_pool)][:2]
                     guard_pool = [stf for stf in shift_data[s] if stf['name'] != wellness_person and stf['name'] not in recep_list]
 
-                    rotated = []
-                    for idx, point in enumerate(regular_duty_points):
-                        staff = guard_pool[idx % len(guard_pool)]['name'] if guard_pool else "VACANT"
-                        rotated.append({"Point": point, "Staff Name": staff})
+                    rotated = [{"Point": p, "Staff Name": (guard_pool[idx % len(guard_pool)]['name'] if guard_pool else "VACANT")} for idx, p in enumerate(regular_duty_points)]
                     
-                    # HEADER
+                    # RENDER
                     st.markdown(f'<div class="shift-header shift-{s.lower()}">📅 {s} SHIFT - {selected_date.strftime("%d-%b-%Y")}</div>', unsafe_allow_html=True)
                     
-                    # SUMMARY BOX (Supervisor + Reception + Wellness)
+                    # Modern Banner for Top Staff
                     st.markdown(f"""
-                    <div class="summary-box">
-                        <b>👨‍💼 Supervisor:</b> {", ".join(supervisors_by_shift[s]) if supervisors_by_shift[s] else "N/A"} | 
-                        <b>🛎️ Reception:</b> {", ".join(recep_list) if recep_list else "N/A"} | 
-                        <b>🏥 Wellness:</b> {wellness_person}
-                    </div>
+                        <div class="summary-banner">
+                            <div><b>👨‍💼 Supervisor:</b> {", ".join(supervisors_by_shift[s]) if supervisors_by_shift[s] else "N/A"}</div>
+                            <div><b>🛎️ Reception:</b> {", ".join(recep_list) if recep_list else "N/A"}</div>
+                            <div><b>🏥 Wellness:</b> {wellness_person}</div>
+                        </div>
                     """, unsafe_allow_html=True)
                     
-                    # MAIN TABLE
                     st.table(pd.DataFrame(rotated))
                     
-                    # LEAVE INFO
+                    # Bottom Leave Info
                     st.markdown(f"""
-                    <div class="leave-box">
-                        <b>🏖️ Week Off:</b> {", ".join(week_offs) if week_offs else "None"} | 
-                        <b>🏥 On Leave:</b> {", ".join(on_leave) if on_leave else "None"}
-                    </div>
+                        <div style='background: white; padding: 10px; border-radius: 8px; border-left: 5px solid #64748b;'>
+                            <small>🏖️ <b>Week Off:</b> {", ".join(week_offs) if week_offs else "None"} | 🏥 <b>Leave:</b> {", ".join(on_leave) if on_leave else "None"}</small>
+                        </div>
                     """, unsafe_allow_html=True)
                     st.divider()
-            else: st.error("Date column not found!")
+            else: st.error("Sheet-la date kandupudikka mudiyala!")
         except Exception as e: st.error(f"Error: {e}")
