@@ -26,12 +26,14 @@ def check_password():
 
 # --- 2. START APP ---
 if check_password():
-    # Google Sheet Settings
     sheet_id = "1v95g8IVPITIF4-mZghIvh1wyr5YUxHGmgK3jyWhtuEQ"
     sheet_name = "FEBRUARY-2026" 
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"
 
+    receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
+    wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
+    
     regular_duty_points = [
         "1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", 
         "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", 
@@ -43,31 +45,25 @@ if check_password():
 
     st.markdown("""
         <style>
-        /* Force single page view and hide unnecessary scrolling */
-        .main { padding: 10px !important; }
         .stApp { background: #f1f5f9; }
-        
-        /* Table Height Fix - No more scroll */
-        div[data-testid="stTable"] { width: 100%; }
-        div[data-testid="stDataFrame"] > div { height: auto !important; max-height: none !important; }
-
         .shift-header { padding: 12px; border-radius: 10px; color: white; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 10px; }
         .shift-a { background: #dc2626; }
         .shift-b { background: #2563eb; }
         .shift-c { background: #059669; }
         
-        .summary-box { border: 2px solid #000; padding: 12px; margin-bottom: 10px; background-color: #fff; border-radius: 8px; font-size: 16px; }
+        .summary-box { border: 2px solid #000; padding: 12px; margin-bottom: 10px; background-color: #fff; border-radius: 8px; }
+        .duty-box { background-color: white; padding: 5px; border-radius: 8px; }
         .leave-box { border: 1px dashed #666; padding: 10px; margin-top: 10px; background-color: #fff; font-size: 14px; }
         
         @media print {
             .no-print, .stButton, [data-testid="stSidebar"] { display: none !important; }
             .main { padding: 0 !important; }
             .stApp { background: white !important; }
+            .summary-box { border: 2px solid #000 !important; }
         }
         </style>
         """, unsafe_allow_html=True)
 
-    # Sidebar
     if st.sidebar.button("🔒 Logout"):
         st.session_state["password_correct"] = False
         st.rerun()
@@ -86,7 +82,6 @@ if check_password():
             df_raw = pd.read_csv(url, header=None)
             day_str = str(selected_date.day)
             
-            # Find Date Column
             date_col_idx = None
             for r in range(min(15, len(df_raw))):
                 for c in range(len(df_raw.columns)):
@@ -116,25 +111,32 @@ if check_password():
                 for s in display_list:
                     if not shift_data[s]: continue
                     
-                    # Simple Rotation
+                    # Logic to pick Receptionists and Wellness
+                    wellness_person = next((stf['name'] for stf in shift_data[s] if any(w in stf['name'] for w in wellness_specialists)), "VACANT")
+                    recep_list = [stf['name'] for stf in shift_data[s] if any(r in stf['name'] for r in receptionists_pool)][:2]
+                    guard_pool = [stf for stf in shift_data[s] if stf['name'] != wellness_person and stf['name'] not in recep_list]
+
                     rotated = []
                     for idx, point in enumerate(regular_duty_points):
-                        staff = shift_data[s][idx % len(shift_data[s])]['name'] if shift_data[s] else "VACANT"
+                        staff = guard_pool[idx % len(guard_pool)]['name'] if guard_pool else "VACANT"
                         rotated.append({"Point": point, "Staff Name": staff})
                     
-                    # UI
+                    # HEADER
                     st.markdown(f'<div class="shift-header shift-{s.lower()}">📅 {s} SHIFT - {selected_date.strftime("%d-%b-%Y")}</div>', unsafe_allow_html=True)
                     
-                    # Single Page Layout: Summary + Table + Leave
+                    # SUMMARY BOX (Supervisor + Reception + Wellness)
                     st.markdown(f"""
                     <div class="summary-box">
-                        <b>👨‍💼 Supervisor:</b> {", ".join(supervisors_by_shift[s]) if supervisors_by_shift[s] else "N/A"}
+                        <b>👨‍💼 Supervisor:</b> {", ".join(supervisors_by_shift[s]) if supervisors_by_shift[s] else "N/A"} | 
+                        <b>🛎️ Reception:</b> {", ".join(recep_list) if recep_list else "N/A"} | 
+                        <b>🏥 Wellness:</b> {wellness_person}
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Using st.table instead of data_editor to prevent scrolling
+                    # MAIN TABLE
                     st.table(pd.DataFrame(rotated))
                     
+                    # LEAVE INFO
                     st.markdown(f"""
                     <div class="leave-box">
                         <b>🏖️ Week Off:</b> {", ".join(week_offs) if week_offs else "None"} | 
