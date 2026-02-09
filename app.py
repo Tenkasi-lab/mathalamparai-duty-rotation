@@ -158,27 +158,19 @@ if check_password():
             
             recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
             
-            # --- FIXED GUARD ALLOCATION LOGIC ---
             guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
             
-            # Rotate Guards based on Date to ensure 1-12 rotation
             if guards:
                 shift_amt = selected_date.day % len(guards)
                 rotated_guards = guards[shift_amt:] + guards[:shift_amt]
             else:
                 rotated_guards = []
 
-            # DEFINE SACRIFICE POINTS (Which points to make VACANT if shortage)
             sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
-            
             required_count = 12
             available_count = len(rotated_guards)
             shortage = required_count - available_count
-            
-            # If shortage, pick points to force VACANT
-            points_to_vacate = []
-            if shortage > 0:
-                points_to_vacate = sacrifice_points[:shortage]
+            points_to_vacate = sacrifice_points[:shortage] if shortage > 0 else []
 
             rot_data = []
             guard_idx = 0
@@ -191,13 +183,14 @@ if check_password():
                         rot_data.append({"Point": point, "Staff Name": rotated_guards[guard_idx]['name']})
                         guard_idx += 1
                     else:
-                        rot_data.append({"Point": point, "Staff Name": "VACANT"}) # Fallback
+                        rot_data.append({"Point": point, "Staff Name": "VACANT"})
 
-            # ADD GENERAL DUTY
-            gen_start_point = 13
-            for g_staff in general_staff:
-                rot_data.append({"Point": f"{gen_start_point}. OLD CAR PARKING (General)", "Staff Name": g_staff})
-                gen_start_point += 1
+            # --- ADD GENERAL DUTY (ONLY FOR A SHIFT) ---
+            if target_shift == "A Shift":
+                gen_start_point = 13
+                for g_staff in general_staff:
+                    rot_data.append({"Point": f"{gen_start_point}. OLD CAR PARKING (General)", "Staff Name": g_staff})
+                    gen_start_point += 1
 
             df_display = pd.DataFrame(rot_data)
             if not df_display.empty: df_display.index = df_display.index + 1
@@ -209,10 +202,13 @@ if check_password():
 
             st.markdown(f'<div class="shift-banner {shift_code.lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
-            gen_sup_display = f"<br><span style='color:#b91c1c; font-size:11px;'>(GEN: {general_supervisor})</span>" if general_supervisor else ""
+            # --- SUPERVISOR DISPLAY (GENERAL FIXED) ---
+            sup_text = ", ".join(sups) if sups else "N/A"
+            if general_supervisor:
+                sup_text += f"<br>{general_supervisor} (GENERAL)" # Matches normal font size
 
             st.markdown(f"""<div class="stat-row">
-                <div class="stat-card"><small>SUPERVISOR</small><br><b>{", ".join(sups) if sups else "N/A"}</b>{gen_sup_display}</div>
+                <div class="stat-card"><small>SUPERVISOR</small><br><b>{sup_text}</b></div>
                 <div class="stat-card"><small>RECEPTION</small><br><b>{", ".join(recep) if recep else "N/A"}</b></div>
                 <div class="stat-card"><small>WELLNESS</small><br><b>{wellness}</b></div>
             </div>""", unsafe_allow_html=True)
