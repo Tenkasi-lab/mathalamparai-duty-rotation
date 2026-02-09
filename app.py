@@ -8,10 +8,9 @@ import pytz # Timezone fix
 if "password_correct" not in st.session_state:
     st.session_state["password_correct"] = False
 
-# --- 2. PASSWORD LOGIC (UPDATED) ---
+# --- 2. SINGLE PASSWORD LOGIC ---
 def check_password():
     def password_entered():
-        # UNGA PUTHU PASSWORD
         if st.session_state["password"] == "Sec@2026": 
             st.session_state["password_correct"] = True
             del st.session_state["password"]
@@ -41,6 +40,8 @@ if check_password():
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
+    
+    # 1 to 12 Points
     regular_duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
@@ -150,18 +151,49 @@ if check_password():
 
             wellness = "VACANT"
             specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
-            
             if specialist_present: wellness = specialist_present
             elif selected_date.weekday() == 1: 
                 potential_relievers = [s['name'] for s in staff_on_duty if not any(r in s['name'] for r in receptionists_pool)]
                 if potential_relievers: wellness = potential_relievers[0]
             
             recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
-            guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
-
-            rot_data = [{"Point": p, "Staff Name": (guards[idx % len(guards)]['name'] if guards else "VACANT")} for idx, p in enumerate(regular_duty_points)]
             
-            # ADD GENERAL DUTY SPLIT
+            # --- FIXED GUARD ALLOCATION LOGIC ---
+            guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
+            
+            # Rotate Guards based on Date to ensure 1-12 rotation
+            if guards:
+                shift_amt = selected_date.day % len(guards)
+                rotated_guards = guards[shift_amt:] + guards[:shift_amt]
+            else:
+                rotated_guards = []
+
+            # DEFINE SACRIFICE POINTS (Which points to make VACANT if shortage)
+            sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
+            
+            required_count = 12
+            available_count = len(rotated_guards)
+            shortage = required_count - available_count
+            
+            # If shortage, pick points to force VACANT
+            points_to_vacate = []
+            if shortage > 0:
+                points_to_vacate = sacrifice_points[:shortage]
+
+            rot_data = []
+            guard_idx = 0
+            
+            for point in regular_duty_points:
+                if point in points_to_vacate:
+                    rot_data.append({"Point": point, "Staff Name": "VACANT"})
+                else:
+                    if guard_idx < len(rotated_guards):
+                        rot_data.append({"Point": point, "Staff Name": rotated_guards[guard_idx]['name']})
+                        guard_idx += 1
+                    else:
+                        rot_data.append({"Point": point, "Staff Name": "VACANT"}) # Fallback
+
+            # ADD GENERAL DUTY
             gen_start_point = 13
             for g_staff in general_staff:
                 rot_data.append({"Point": f"{gen_start_point}. OLD CAR PARKING (General)", "Staff Name": g_staff})
@@ -195,7 +227,6 @@ if check_password():
             else:
                 st.table(st.session_state.current_df)
 
-            # --- RED NAMES IN FOOTER ---
             wo_names = ", ".join(week_offs) if week_offs else "NONE"
             ol_names = ", ".join(on_leave) if on_leave else "NONE"
 
