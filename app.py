@@ -43,56 +43,29 @@ if check_password():
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
 
-    # --- 4. ADVANCED CSS (Sidebar Colors Fix) ---
+    # --- 4. ADVANCED CSS (High Contrast & Hidden Edit) ---
     st.markdown("""
         <style>
         .stApp { background-color: #f8fafc; }
         
-        /* 1. SIDEBAR BACKGROUND */
+        /* SIDEBAR FIXES */
         [data-testid="stSidebar"] { background-color: #0f172a !important; }
+        [data-testid="stSidebar"] label, [data-testid="stSidebar"] h2 { color: #ffffff !important; }
         
-        /* 2. ALL LABELS (Select Date, Select Shift, Headers) -> WHITE */
-        [data-testid="stSidebar"] label, 
-        [data-testid="stSidebar"] .stMarkdown p,
-        [data-testid="stSidebar"] h1, 
-        [data-testid="stSidebar"] h2, 
-        [data-testid="stSidebar"] h3 { 
-            color: #ffffff !important; 
-        }
+        /* DROPDOWN & INPUT TEXT FIX (Black Text on White) */
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div { background-color: white !important; color: black !important; }
+        [data-testid="stSidebar"] div[data-baseweb="select"] span { color: black !important; }
+        [data-testid="stSidebar"] input { color: black !important; background-color: white !important; }
         
-        /* 3. INPUT BOXES & DROPDOWNS (White Box, BLACK Text) */
-        [data-testid="stSidebar"] input {
-            color: black !important;
-        }
-        [data-testid="stSidebar"] div[data-baseweb="select"] > div {
-            background-color: white !important;
-            color: black !important;
-        }
-        /* Force text inside dropdown to be BLACK */
-        [data-testid="stSidebar"] div[data-baseweb="select"] span {
-            color: black !important; 
-        }
-        /* Arrow icon in dropdown */
-        [data-testid="stSidebar"] div[data-baseweb="select"] svg {
-            fill: black !important;
-        }
-
-        /* 4. LOGOUT BUTTON (Red) */
+        /* LOGOUT BUTTON (Red) */
         [data-testid="stSidebar"] .stButton > button {
-            background-color: #ef4444 !important;
-            color: white !important;
-            border: 1px solid #b91c1c !important;
-            font-weight: bold !important;
+            background-color: #ef4444 !important; color: white !important; border: 1px solid #b91c1c !important; font-weight: bold !important;
         }
 
-        /* 5. ADMIN MODE CHECKBOX (Gold Text) */
-        [data-testid="stSidebar"] .stCheckbox label span {
-            color: #facc15 !important; /* Gold Color */
-            font-weight: bold !important;
-            font-size: 16px !important;
-        }
+        /* HIDDEN CHECKBOX (Secret Dot) */
+        [data-testid="stSidebar"] .stCheckbox label span { color: #334155 !important; font-size: 10px !important; }
 
-        /* --- PRINT OPTIMIZATION --- */
+        /* PRINT OPTIMIZATION */
         @media print {
             .no-print, [data-testid="stSidebar"], .stButton, header, footer { display: none !important; }
             .main { padding: 0 !important; }
@@ -104,8 +77,7 @@ if check_password():
             table { font-size: 9px !important; width: 100% !important; border-collapse: collapse !important; }
             td, th { padding: 2px !important; border: 1px solid #ddd !important; }
         }
-
-        /* Header Style */
+        
         .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
         .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; }
         .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
@@ -116,28 +88,23 @@ if check_password():
         </style>
         """, unsafe_allow_html=True)
 
-    # --- 5. SIDEBAR CONTROLS ---
-    st.sidebar.markdown("<h2 style='color: #facc15; text-align: center;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
-    
-    # 1. Logout
+    # --- 5. SIDEBAR CONTROLS (No Refresh Button) ---
+    st.sidebar.markdown("<h2 style='text-align: center;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
     if st.sidebar.button("🔒 EXIT SYSTEM", use_container_width=True):
         st.session_state["password_correct"] = False
         st.rerun()
 
     st.sidebar.divider()
-
-    # 2. Date & Shift
+    
+    # Auto-Update Inputs
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
     
-    st.sidebar.divider()
+    # SECRET EDIT MODE (Just a small dot at bottom)
+    st.sidebar.markdown("<br>"*10, unsafe_allow_html=True) # Space to push to bottom
+    secret_edit = st.sidebar.checkbox(".", help="Secret Admin Mode") 
 
-    # 3. Admin Control (Gold Text Fix)
-    st.sidebar.markdown("<b style='color:white; font-size:14px;'>ADMIN CONTROLS</b>", unsafe_allow_html=True)
-    edit_mode = st.sidebar.checkbox("🚀 ENABLE EDIT MODE")
-
-    # --- 6. MAIN CONTENT ---
-    # Header
+    # --- 6. MAIN LOGIC (Auto Run) ---
     current_time = datetime.now().strftime("%I:%M %p")
     st.markdown(f"""
         <div class='main-header no-print'>
@@ -147,66 +114,86 @@ if check_password():
     """, unsafe_allow_html=True)
 
     col1, col2 = st.columns([1, 1])
-    with col1:
-        gen_btn = st.button('🚀 REFRESH DATA', use_container_width=True)
-    with col2:
+    with col2: # Only Print Button Visible
         st.components.v1.html('<button style="background: #1e293b; color: #facc15; padding: 12px 24px; border-radius: 12px; border: 2px solid #facc15; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ EXPORT TO PDF</button>', height=60)
 
-    if gen_btn or 'current_df' in st.session_state:
-        try:
-            df_raw = pd.read_csv(url, header=None)
-            day_str = str(selected_date.day)
-            date_col_idx = None
-            for r in range(min(15, len(df_raw))):
-                for c in range(len(df_raw.columns)):
-                    if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
-                        date_col_idx = c; break
-                if date_col_idx is not None: break
+    try:
+        # DATA FETCHING (Runs Automatically)
+        df_raw = pd.read_csv(url, header=None)
+        day_str = str(selected_date.day)
+        date_col_idx = None
+        for r in range(min(15, len(df_raw))):
+            for c in range(len(df_raw.columns)):
+                if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
+                    date_col_idx = c; break
+            if date_col_idx is not None: break
 
-            if date_col_idx:
-                shift_code = target_shift[0]
-                staff_on_duty, sups, week_offs, on_leave = [], [], [], []
+        if date_col_idx:
+            shift_code = target_shift[0]
+            staff_on_duty, sups, week_offs, on_leave = [], [], [], []
 
-                for i in range(len(df_raw)):
-                    if i > 85: break
-                    name = str(df_raw.iloc[i, 1]).strip().upper()
-                    status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
-                    if name and name not in ["NAME", "NAN"]:
-                        if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
-                        elif status in ["L", "LEAVE"]: on_leave.append(name)
-                        elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
-                        elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
+            for i in range(len(df_raw)):
+                if i > 85: break
+                name = str(df_raw.iloc[i, 1]).strip().upper()
+                status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
+                if name and name not in ["NAME", "NAN"]:
+                    if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
+                    elif status in ["L", "LEAVE"]: on_leave.append(name)
+                    elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
+                    elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
 
-                wellness = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), "VACANT")
-                recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
-                guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
+            # --- WELLNESS LOGIC (Including Tuesday Reliever) ---
+            wellness = "VACANT"
+            # 1. First check if a specialist is present
+            specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
+            
+            if specialist_present:
+                wellness = specialist_present
+            elif selected_date.weekday() == 1: # Tuesday (0=Mon, 1=Tue)
+                # 2. If Tuesday and No Specialist -> Assign Reliever (First available non-receptionist)
+                potential_relievers = [s['name'] for s in staff_on_duty if not any(r in s['name'] for r in receptionists_pool)]
+                if potential_relievers:
+                    wellness = potential_relievers[0] # Pick first person as reliever
+            
+            # Reception Logic
+            recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
+            
+            # Guards Logic (Exclude Wellness & Reception)
+            guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
 
-                if gen_btn or 'current_df' not in st.session_state:
-                    rot_data = [{"Point": p, "Staff Name": (guards[idx % len(guards)]['name'] if guards else "VACANT")} for idx, p in enumerate(regular_duty_points)]
-                    st.session_state.current_df = pd.DataFrame(rot_data)
+            # Generate Rotation
+            rot_data = [{"Point": p, "Staff Name": (guards[idx % len(guards)]['name'] if guards else "VACANT")} for idx, p in enumerate(regular_duty_points)]
+            
+            # Use Session State for Edits
+            if 'current_date' not in st.session_state or st.session_state.current_date != selected_date or st.session_state.current_shift != target_shift:
+                st.session_state.current_df = pd.DataFrame(rot_data)
+                st.session_state.current_date = selected_date
+                st.session_state.current_shift = target_shift
 
-                # RENDER DATA
-                st.markdown(f'<div class="shift-banner {shift_code.lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
-                
-                st.markdown(f"""<div class="stat-row">
-                    <div class="stat-card"><small>SUPERVISOR</small><br><b>{", ".join(sups) if sups else "N/A"}</b></div>
-                    <div class="stat-card"><small>RECEPTION</small><br><b>{", ".join(recep) if recep else "N/A"}</b></div>
-                    <div class="stat-card"><small>WELLNESS</small><br><b>{wellness}</b></div>
-                </div>""", unsafe_allow_html=True)
+            # RENDER DASHBOARD
+            st.markdown(f'<div class="shift-banner {shift_code.lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+            
+            st.markdown(f"""<div class="stat-row">
+                <div class="stat-card"><small>SUPERVISOR</small><br><b>{", ".join(sups) if sups else "N/A"}</b></div>
+                <div class="stat-card"><small>RECEPTION</small><br><b>{", ".join(recep) if recep else "N/A"}</b></div>
+                <div class="stat-card"><small>WELLNESS</small><br><b>{wellness}</b></div>
+            </div>""", unsafe_allow_html=True)
 
-                if edit_mode:
-                    st.info("💡 ADMIN MODE: Edit staff names below and click Save.")
-                    dropdown_names = sorted([s['name'] for s in staff_on_duty] + ["VACANT", "OFF"])
-                    edited_df = st.data_editor(st.session_state.current_df, column_config={"Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names)}, hide_index=True, use_container_width=True)
-                    if st.button("💾 SAVE CHANGES", use_container_width=True):
-                        st.session_state.current_df = edited_df
-                        st.success("Changes Saved!"); st.rerun()
-                else:
-                    st.table(st.session_state.current_df)
+            # --- SECRET EDIT MODE ---
+            if secret_edit: # Only if secret checkbox is ticked
+                st.warning("⚠️ EDIT MODE ACTIVE")
+                dropdown_names = sorted([s['name'] for s in staff_on_duty] + ["VACANT", "OFF"])
+                edited_df = st.data_editor(st.session_state.current_df, column_config={"Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names)}, hide_index=True, use_container_width=True)
+                if st.button("💾 SAVE CHANGES"):
+                    st.session_state.current_df = edited_df
+                    st.success("Saved!")
+                    st.rerun()
+            else:
+                st.table(st.session_state.current_df)
 
-                st.markdown(f"""<div class="footer-info" style='background: white; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 13px; margin-top: 10px;'>
-                    <span>🏖️ <b>WEEK OFF:</b> {", ".join(week_offs) if week_offs else "NONE"}</span>
-                    <span>🏥 <b>ON LEAVE:</b> {", ".join(on_leave) if on_leave else "NONE"}</span>
-                </div>""", unsafe_allow_html=True)
-            else: st.error("Database Error: Date column missing.")
-        except Exception as e: st.error(f"System Error: {e}")
+            st.markdown(f"""<div class="footer-info" style='background: white; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 13px; margin-top: 10px;'>
+                <span>🏖️ <b>WEEK OFF:</b> {", ".join(week_offs) if week_offs else "NONE"}</span>
+                <span>🏥 <b>ON LEAVE:</b> {", ".join(on_leave) if on_leave else "NONE"}</span>
+            </div>""", unsafe_allow_html=True)
+        else: st.error("Date column not found.")
+    except Exception as e: st.error(f"System Error: {e}")
