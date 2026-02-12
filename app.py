@@ -103,10 +103,6 @@ if check_password():
         </div>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 1])
-    with col2: 
-        st.components.v1.html('<button style="background: #1e293b; color: #facc15; padding: 12px 24px; border-radius: 12px; border: 2px solid #facc15; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ EXPORT TO PDF</button>', height=60)
-
     history_key = f"{selected_date}_{target_shift}"
 
     try:
@@ -153,32 +149,41 @@ if check_password():
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
-                if guards:
-                    # FIX: Use Day of Year (tm_yday) for consistent rotation
-                    day_of_year = selected_date.timetuple().tm_yday
-                    shift_amt = day_of_year % len(guards)
-                    rotated_guards = guards[shift_amt:] + guards[:shift_amt]
-                else:
-                    rotated_guards = []
-
+                # --- NEW FORWARD ROTATION LOGIC ---
+                guards = sorted([s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep], key=lambda x: x['name'])
+                
+                # 1. IDENTIFY VACANCIES FIRST (PRIORITY LOGIC)
                 sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
                 required_count = 12
-                available_count = len(rotated_guards)
+                available_count = len(guards)
                 shortage = required_count - available_count
                 points_to_vacate = sacrifice_points[:shortage] if shortage > 0 else []
-
+                
+                # 2. CREATE "ACTIVE POINTS" LIST (Excluding Vacant ones)
+                active_duty_points = [p for p in regular_duty_points if p not in points_to_vacate]
+                
                 rot_data = []
-                guard_idx = 0
-                for point in regular_duty_points:
-                    if point in points_to_vacate:
-                        rot_data.append({"Point": point, "Staff Name": "VACANT"})
-                    else:
-                        if guard_idx < len(rotated_guards):
-                            rot_data.append({"Point": point, "Staff Name": rotated_guards[guard_idx]['name']})
-                            guard_idx += 1
-                        else:
-                            rot_data.append({"Point": point, "Staff Name": "VACANT"})
+                day_of_year = selected_date.timetuple().tm_yday
+                
+                # 3. MAPPING LOGIC: Assign guards to Active Points sequentially
+                # Formula: Guard[i] goes to Point[i + Day] -> This ensures Forward Movement
+                # If Guard A is at Index 0 today (Point 1), tomorrow he will be at Index 1 (Point 2).
+                
+                if guards:
+                    for i, point in enumerate(active_duty_points):
+                        # Use MODULO to cycle through guards
+                        # (i - day_of_year) ensures guards rotate FORWARD through the points list
+                        guard_idx = (i - day_of_year) % len(guards)
+                        rot_data.append({"Point": point, "Staff Name": guards[guard_idx]['name']})
+                
+                # 4. FILL VACANT POINTS
+                for vac_point in points_to_vacate:
+                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
+
+                # 5. SORT ROT_DATA TO MATCH ORIGINAL 1-12 ORDER
+                # Create a sorting map
+                point_order = {p: i for i, p in enumerate(regular_duty_points)}
+                rot_data.sort(key=lambda x: point_order.get(x["Point"], 99))
 
                 if target_shift == "A Shift":
                     gen_start_point = 13
@@ -229,3 +234,4 @@ if check_password():
             </div>""", unsafe_allow_html=True)
         else: st.error("Date column not found.")
     except Exception as e: st.error(f"System Error: {e}")
+    
