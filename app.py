@@ -149,39 +149,48 @@ if check_password():
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                # --- NEW FORWARD ROTATION LOGIC ---
+                # --- NEW LOGIC: ROTATE "ACTIVE POINTS" INSTEAD OF GUARDS ---
                 guards = sorted([s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep], key=lambda x: x['name'])
                 
-                # 1. IDENTIFY VACANCIES FIRST (PRIORITY LOGIC)
+                # 1. Identify which points must be VACANT due to shortage
                 sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
                 required_count = 12
                 available_count = len(guards)
                 shortage = required_count - available_count
-                points_to_vacate = sacrifice_points[:shortage] if shortage > 0 else []
                 
-                # 2. CREATE "ACTIVE POINTS" LIST (Excluding Vacant ones)
-                active_duty_points = [p for p in regular_duty_points if p not in points_to_vacate]
+                points_forced_vacant = []
+                if shortage > 0:
+                    points_forced_vacant = sacrifice_points[:shortage]
                 
-                rot_data = []
+                # 2. Get list of ACTIVE points (Points we actually have staff for)
+                # Keep them in original order (1, 2, 4, 6...)
+                active_duty_points = [p for p in regular_duty_points if p not in points_forced_vacant]
+                
+                # 3. Rotate the ACTIVE POINTS list based on Day of Year
+                # This ensures staff move to the *next available point*
                 day_of_year = selected_date.timetuple().tm_yday
-                
-                # 3. MAPPING LOGIC: Assign guards to Active Points sequentially
-                # Formula: Guard[i] goes to Point[i + Day] -> This ensures Forward Movement
-                # If Guard A is at Index 0 today (Point 1), tomorrow he will be at Index 1 (Point 2).
-                
-                if guards:
-                    for i, point in enumerate(active_duty_points):
-                        # Use MODULO to cycle through guards
-                        # (i - day_of_year) ensures guards rotate FORWARD through the points list
-                        guard_idx = (i - day_of_year) % len(guards)
-                        rot_data.append({"Point": point, "Staff Name": guards[guard_idx]['name']})
-                
-                # 4. FILL VACANT POINTS
-                for vac_point in points_to_vacate:
-                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
+                if active_duty_points:
+                    shift_amt = day_of_year % len(active_duty_points)
+                    # Rotate Points Backward so Guards move Forward through them
+                    # Or simpler: Rotate points so index 0 changes daily
+                    rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
+                else:
+                    rotated_active_points = []
 
-                # 5. SORT ROT_DATA TO MATCH ORIGINAL 1-12 ORDER
-                # Create a sorting map
+                rot_data = []
+                
+                # 4. Assign Guards to Rotated Active Points
+                # Since guards are sorted alphabetically, mapping them to rotated points 
+                # guarantees they visit every active point cyclically.
+                for i, guard in enumerate(guards):
+                    if i < len(rotated_active_points):
+                        rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
+                
+                # 5. Add the Forced Vacant points
+                for vac_point in points_forced_vacant:
+                    rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
+
+                # 6. Sort for Display (1 to 12)
                 point_order = {p: i for i, p in enumerate(regular_duty_points)}
                 rot_data.sort(key=lambda x: point_order.get(x["Point"], 99))
 
@@ -234,4 +243,3 @@ if check_password():
             </div>""", unsafe_allow_html=True)
         else: st.error("Date column not found.")
     except Exception as e: st.error(f"System Error: {e}")
-    
