@@ -43,6 +43,7 @@ if check_password():
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
+    # Base list
     regular_duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
@@ -139,27 +140,25 @@ if check_password():
             specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
             
-            # GUARDS POOL
             guards_pool = sorted([
                 s for s in staff_on_duty 
                 if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])
             ], key=lambda x: x['name'])
 
-            # --- WELLNESS LOGIC ---
+            # --- WELLNESS (WEEKLY) ---
             wellness = "VACANT"
             if specialist_present:
                 wellness = specialist_present['name']
-            elif selected_date.weekday() == 1: # Tuesday
+            elif selected_date.weekday() == 1: 
                 if guards_pool:
                     week_num = selected_date.isocalendar()[1]
                     reliever_idx = week_num % len(guards_pool)
                     reliever = guards_pool.pop(reliever_idx)
                     wellness = reliever['name']
 
-            # --- RECEPTION LOGIC (SATURDAY) ---
+            # --- RECEPTION (SATURDAY) ---
             final_recep_team = [r['name'] for r in regular_recep_present]
-            
-            if selected_date.weekday() == 5 and guards_pool: # Saturday
+            if selected_date.weekday() == 5 and guards_pool: 
                 week_num = selected_date.isocalendar()[1]
                 recep_reliever_idx = (week_num + 3) % len(guards_pool)
                 recep_reliever = guards_pool.pop(recep_reliever_idx)
@@ -171,20 +170,21 @@ if check_password():
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                # --- MAIN ROTATION LOGIC (STRICT SEQUENTIAL) ---
-                
+                # --- MODIFY POINT NAMES BASED ON SHIFT ---
+                current_duty_points = list(regular_duty_points) # Make a copy
+                if target_shift == "C Shift":
+                    # Rename 10. CAR PARKING ENTRANCE to 10. ESCORT
+                    current_duty_points[9] = "10. ESCORT"
+
+                # --- MAIN ROTATION LOGIC ---
                 sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
                 required_count = 12
                 available_count = len(guards_pool)
                 shortage = required_count - available_count
                 
                 points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
-                active_duty_points = [p for p in regular_duty_points if p not in points_forced_vacant]
+                active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
                 
-                # STRICT SEQUENTIAL LOGIC: No Jumping. Just Day of Year.
-                # Day 43 -> Rotation 43
-                # Day 44 -> Rotation 44
-                # This guarantees exactly +1 movement per day.
                 day_of_year = selected_date.timetuple().tm_yday
                 
                 if active_duty_points:
@@ -201,7 +201,7 @@ if check_password():
                 for vac_point in points_forced_vacant:
                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
 
-                point_order = {p: i for i, p in enumerate(regular_duty_points)}
+                point_order = {p: i for i, p in enumerate(current_duty_points)}
                 rot_data.sort(key=lambda x: point_order.get(x["Point"], 99))
 
                 if target_shift == "A Shift":
