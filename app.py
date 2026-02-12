@@ -8,7 +8,7 @@ import pytz
 if "password_correct" not in st.session_state:
     st.session_state["password_correct"] = False
 
-# Initialize Duty History to save edits across shifts/dates
+# Initialize Duty History
 if "duty_history" not in st.session_state:
     st.session_state.duty_history = {}
 
@@ -93,7 +93,7 @@ if check_password():
     st.sidebar.markdown("<br>"*5, unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox(".", help="Secret Admin Mode") 
 
-    # --- 6. MAIN LOGIC (WITH HISTORY MEMORY) ---
+    # --- 6. MAIN LOGIC ---
     ist = pytz.timezone('Asia/Kolkata')
     current_time = datetime.now(ist).strftime("%I:%M %p")
     
@@ -108,91 +108,58 @@ if check_password():
     with col2: 
         st.components.v1.html('<button style="background: #1e293b; color: #facc15; padding: 12px 24px; border-radius: 12px; border: 2px solid #facc15; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ EXPORT TO PDF</button>', height=60)
 
-    # UNIQUE KEY FOR SAVING HISTORY (Example: "2026-02-12_A Shift")
+    # HISTORY KEY
     history_key = f"{selected_date}_{target_shift}"
 
     try:
-        # STEP 1: CHECK IF WE ALREADY HAVE SAVED DATA FOR THIS DAY/SHIFT
-        if history_key in st.session_state.duty_history:
-            # Load from memory (Preserves Edits)
-            df_display = st.session_state.duty_history[history_key]
-            
-            # We still need to fetch basics for Summary (Sup, Recep, etc.) - fast lookup
-            # To keep it simple, we re-run logic for summary, but keep Table from history
-            df_raw = pd.read_csv(url, header=None) # Needed for footer info
-            # (Fetching raw again just for side-info is safer than storing everything)
-            day_str = str(selected_date.day)
-            date_col_idx = None
-            for r in range(min(15, len(df_raw))):
-                for c in range(len(df_raw.columns)):
-                    if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
-                        date_col_idx = c; break
-                if date_col_idx is not None: break
-            
-            sups, recep, wellness, week_offs, on_leave = [], [], "VACANT", [], []
+        # ALWAYS FETCH SHEET DATA (To get Dropdown Options & Summary)
+        df_raw = pd.read_csv(url, header=None)
+        day_str = str(selected_date.day)
+        date_col_idx = None
+        for r in range(min(15, len(df_raw))):
+            for c in range(len(df_raw.columns)):
+                if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
+                    date_col_idx = c; break
+            if date_col_idx is not None: break
+
+        if date_col_idx:
+            shift_code = target_shift[0]
+            staff_on_duty, sups, week_offs, on_leave = [], [], [], []
             general_supervisor = None
-            if date_col_idx:
-                shift_code = target_shift[0]
-                staff_on_duty = []
-                for i in range(len(df_raw)):
-                    if i > 85: break
-                    name = str(df_raw.iloc[i, 1]).strip().upper()
-                    status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
-                    if name and name not in ["NAME", "NAN"]:
-                        if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
-                        elif status in ["L", "LEAVE"]: on_leave.append(name)
-                        elif status in ["G", "GEN", "GENERAL"]:
-                            if any(s in name for s in supervisors_pool): general_supervisor = name
-                        elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
-                        elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
+            general_staff = []
+
+            for i in range(len(df_raw)):
+                if i > 85: break
+                name = str(df_raw.iloc[i, 1]).strip().upper()
+                status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
                 
-                specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
-                if specialist_present: wellness = specialist_present
-                elif selected_date.weekday() == 1: 
-                    pot = [s['name'] for s in staff_on_duty if not any(r in s['name'] for r in receptionists_pool)]
-                    if pot: wellness = pot[0]
-                recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
+                if name and name not in ["NAME", "NAN"]:
+                    if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
+                    elif status in ["L", "LEAVE"]: on_leave.append(name)
+                    elif status in ["G", "GEN", "GENERAL"]:
+                        if any(s in name for s in supervisors_pool): general_supervisor = name
+                        else: general_staff.append(name)
+                    elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
+                    elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
 
-        else:
-            # STEP 2: NO HISTORY? GENERATE FRESH FROM GOOGLE SHEET
-            df_raw = pd.read_csv(url, header=None)
-            day_str = str(selected_date.day)
-            date_col_idx = None
-            for r in range(min(15, len(df_raw))):
-                for c in range(len(df_raw.columns)):
-                    if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
-                        date_col_idx = c; break
-                if date_col_idx is not None: break
+            wellness = "VACANT"
+            specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
+            if specialist_present: wellness = specialist_present
+            elif selected_date.weekday() == 1: 
+                potential_relievers = [s['name'] for s in staff_on_duty if not any(r in s['name'] for r in receptionists_pool)]
+                if potential_relievers: wellness = potential_relievers[0]
+            
+            recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
+            
+            # --- PREPARE DROPDOWN LIST ---
+            # All available staff + General + Vacant + Off
+            dropdown_names = sorted([s['name'] for s in staff_on_duty] + general_staff + ["VACANT", "OFF"])
 
-            if date_col_idx:
-                shift_code = target_shift[0]
-                staff_on_duty, sups, week_offs, on_leave = [], [], [], []
-                general_supervisor = None
-                general_staff = []
-
-                for i in range(len(df_raw)):
-                    if i > 85: break
-                    name = str(df_raw.iloc[i, 1]).strip().upper()
-                    status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
-                    
-                    if name and name not in ["NAME", "NAN"]:
-                        if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
-                        elif status in ["L", "LEAVE"]: on_leave.append(name)
-                        elif status in ["G", "GEN", "GENERAL"]:
-                            if any(s in name for s in supervisors_pool): general_supervisor = name
-                            else: general_staff.append(name)
-                        elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
-                        elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
-
-                wellness = "VACANT"
-                specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
-                if specialist_present: wellness = specialist_present
-                elif selected_date.weekday() == 1: 
-                    potential_relievers = [s['name'] for s in staff_on_duty if not any(r in s['name'] for r in receptionists_pool)]
-                    if potential_relievers: wellness = potential_relievers[0]
-                
-                recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
-                
+            # --- DETERMINE TABLE DATA ---
+            # If History exists, use it. Else, calculate it.
+            if history_key in st.session_state.duty_history:
+                df_display = st.session_state.duty_history[history_key]
+            else:
                 # ROTATION LOGIC
                 guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
                 if guards:
@@ -228,44 +195,46 @@ if check_password():
                 df_display = pd.DataFrame(rot_data)
                 if not df_display.empty: df_display.index = df_display.index + 1
                 
-                # SAVE TO HISTORY FOR THE FIRST TIME
+                # SAVE INITIAL CALCULATION TO HISTORY
                 st.session_state.duty_history[history_key] = df_display
 
-        # --- RENDER ---
-        st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
-        
-        sup_text = ", ".join(sups) if sups else "N/A"
-        if general_supervisor: sup_text += f"<br>{general_supervisor} (GENERAL)"
-
-        st.markdown(f"""<div class="stat-row">
-            <div class="stat-card"><small>SUPERVISOR</small><br><b>{sup_text}</b></div>
-            <div class="stat-card"><small>RECEPTION</small><br><b>{", ".join(recep) if recep else "N/A"}</b></div>
-            <div class="stat-card"><small>WELLNESS</small><br><b>{wellness}</b></div>
-        </div>""", unsafe_allow_html=True)
-
-        if secret_edit:
-            st.warning("⚠️ EDIT MODE ACTIVE")
-            # Need list of names for dropdown. Fetching unique names from current display + extras
-            all_options = set(df_display["Staff Name"].tolist())
-            all_options.update(["VACANT", "OFF"])
-            # Ideally fetch full list from sheet, but for quick edit, this works + typing support
+            # --- RENDER ---
+            st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
-            edited_df = st.data_editor(df_display, column_config={"Staff Name": st.column_config.TextColumn("ASSIGN STAFF")}, use_container_width=True)
-            
-            if st.button("💾 SAVE CHANGES"):
-                # UPDATE HISTORY
-                st.session_state.duty_history[history_key] = edited_df
-                st.success("Saved! Edits are locked for this session.")
-                st.rerun()
-        else:
-            st.table(df_display)
+            sup_text = ", ".join(sups) if sups else "N/A"
+            if general_supervisor: sup_text += f"<br>{general_supervisor} (GENERAL)"
 
-        wo_names = ", ".join(week_offs) if week_offs else "NONE"
-        ol_names = ", ".join(on_leave) if on_leave else "NONE"
+            st.markdown(f"""<div class="stat-row">
+                <div class="stat-card"><small>SUPERVISOR</small><br><b>{sup_text}</b></div>
+                <div class="stat-card"><small>RECEPTION</small><br><b>{", ".join(recep) if recep else "N/A"}</b></div>
+                <div class="stat-card"><small>WELLNESS</small><br><b>{wellness}</b></div>
+            </div>""", unsafe_allow_html=True)
 
-        st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
-            <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
-            <span><b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span></span>
-        </div>""", unsafe_allow_html=True)
+            if secret_edit:
+                st.warning("⚠️ EDIT MODE ACTIVE")
+                
+                # USE DROPDOWN (SelectboxColumn) WITH FETCHED NAMES
+                edited_df = st.data_editor(
+                    df_display, 
+                    column_config={
+                        "Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names)
+                    }, 
+                    use_container_width=True
+                )
+                
+                if st.button("💾 SAVE CHANGES"):
+                    st.session_state.duty_history[history_key] = edited_df
+                    st.success("Saved! Edits are locked for this session.")
+                    st.rerun()
+            else:
+                st.table(df_display)
 
+            wo_names = ", ".join(week_offs) if week_offs else "NONE"
+            ol_names = ", ".join(on_leave) if on_leave else "NONE"
+
+            st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
+                <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
+                <span><b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span></span>
+            </div>""", unsafe_allow_html=True)
+        else: st.error("Date column not found.")
     except Exception as e: st.error(f"System Error: {e}")
