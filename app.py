@@ -135,62 +135,78 @@ if check_password():
                     elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
                     elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
 
+            # --- SEPARATE STAFF POOLS ---
+            # 1. Specialist
+            specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
+            
+            # 2. Regular Receptionists
+            regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
+            
+            # 3. Available Guards (Pool for Relief & Duty)
+            # Remove specialists and receptionists from this pool
+            guards_pool = sorted([
+                s for s in staff_on_duty 
+                if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])
+            ], key=lambda x: x['name'])
+
+            # --- WELLNESS LOGIC (ROTATION FIX) ---
             wellness = "VACANT"
-            specialist_present = next((s['name'] for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
-            if specialist_present: wellness = specialist_present
-            elif selected_date.weekday() == 1: 
-                potential_relievers = [s['name'] for s in staff_on_duty if not any(r in s['name'] for r in receptionists_pool)]
-                if potential_relievers: wellness = potential_relievers[0]
+            if specialist_present:
+                wellness = specialist_present['name']
+            elif selected_date.weekday() == 1: # Tuesday
+                # RELIEVER LOGIC: Rotate based on WEEK NUMBER
+                if guards_pool:
+                    week_num = selected_date.isocalendar()[1]
+                    reliever_idx = week_num % len(guards_pool)
+                    reliever = guards_pool.pop(reliever_idx) # Remove from guards so they don't get other duty
+                    wellness = reliever['name']
+
+            # --- RECEPTION LOGIC (SATURDAY RELIEF FIX) ---
+            final_recep_team = [r['name'] for r in regular_recep_present]
             
-            recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
+            # If Saturday (5) AND we need a reliever (assuming usually 2 are needed)
+            # Logic: If someone is WO, pool will be short. Add a reliever.
+            if selected_date.weekday() == 5 and guards_pool:
+                # Rotate Reliever based on Week Number (Offset to avoid same as Wellness)
+                week_num = selected_date.isocalendar()[1]
+                recep_reliever_idx = (week_num + 2) % len(guards_pool)
+                recep_reliever = guards_pool.pop(recep_reliever_idx) # Remove from guards
+                final_recep_team.append(recep_reliever['name'])
             
+            # Display logic
+            recep_display = final_recep_team[:2]
+
+            # Dropdown List
             dropdown_names = sorted([s['name'] for s in staff_on_duty] + general_staff + ["VACANT", "OFF"])
 
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                # --- NEW LOGIC: ROTATE "ACTIVE POINTS" INSTEAD OF GUARDS ---
-                guards = sorted([s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep], key=lambda x: x['name'])
+                # --- MAIN DUTY ROTATION (guards_pool now excludes Wellness & Recep Relievers) ---
                 
-                # 1. Identify which points must be VACANT due to shortage
                 sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
                 required_count = 12
-                available_count = len(guards)
+                available_count = len(guards_pool)
                 shortage = required_count - available_count
                 
-                points_forced_vacant = []
-                if shortage > 0:
-                    points_forced_vacant = sacrifice_points[:shortage]
-                
-                # 2. Get list of ACTIVE points (Points we actually have staff for)
-                # Keep them in original order (1, 2, 4, 6...)
+                points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
                 active_duty_points = [p for p in regular_duty_points if p not in points_forced_vacant]
                 
-                # 3. Rotate the ACTIVE POINTS list based on Day of Year
-                # This ensures staff move to the *next available point*
                 day_of_year = selected_date.timetuple().tm_yday
                 if active_duty_points:
                     shift_amt = day_of_year % len(active_duty_points)
-                    # Rotate Points Backward so Guards move Forward through them
-                    # Or simpler: Rotate points so index 0 changes daily
                     rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
                 else:
                     rotated_active_points = []
 
                 rot_data = []
-                
-                # 4. Assign Guards to Rotated Active Points
-                # Since guards are sorted alphabetically, mapping them to rotated points 
-                # guarantees they visit every active point cyclically.
-                for i, guard in enumerate(guards):
+                for i, guard in enumerate(guards_pool):
                     if i < len(rotated_active_points):
                         rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
                 
-                # 5. Add the Forced Vacant points
                 for vac_point in points_forced_vacant:
                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
 
-                # 6. Sort for Display (1 to 12)
                 point_order = {p: i for i, p in enumerate(regular_duty_points)}
                 rot_data.sort(key=lambda x: point_order.get(x["Point"], 99))
 
@@ -213,7 +229,7 @@ if check_password():
 
             st.markdown(f"""<div class="stat-row">
                 <div class="stat-card"><small>SUPERVISOR</small><br><b>{sup_text}</b></div>
-                <div class="stat-card"><small>RECEPTION</small><br><b>{", ".join(recep) if recep else "N/A"}</b></div>
+                <div class="stat-card"><small>RECEPTION</small><br><b>{", ".join(recep_display) if recep_display else "N/A"}</b></div>
                 <div class="stat-card"><small>WELLNESS</small><br><b>{wellness}</b></div>
             </div>""", unsafe_allow_html=True)
 
