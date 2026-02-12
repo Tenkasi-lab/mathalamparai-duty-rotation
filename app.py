@@ -8,7 +8,6 @@ import pytz
 if "password_correct" not in st.session_state:
     st.session_state["password_correct"] = False
 
-# Initialize Duty History
 if "duty_history" not in st.session_state:
     st.session_state.duty_history = {}
 
@@ -108,11 +107,9 @@ if check_password():
     with col2: 
         st.components.v1.html('<button style="background: #1e293b; color: #facc15; padding: 12px 24px; border-radius: 12px; border: 2px solid #facc15; font-weight: bold; cursor: pointer; width: 100%;" onclick="window.parent.print()">🖨️ EXPORT TO PDF</button>', height=60)
 
-    # HISTORY KEY
     history_key = f"{selected_date}_{target_shift}"
 
     try:
-        # ALWAYS FETCH SHEET DATA (To get Dropdown Options & Summary)
         df_raw = pd.read_csv(url, header=None)
         day_str = str(selected_date.day)
         date_col_idx = None
@@ -151,19 +148,16 @@ if check_password():
             
             recep = [s['name'] for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)][:2]
             
-            # --- PREPARE DROPDOWN LIST ---
-            # All available staff + General + Vacant + Off
             dropdown_names = sorted([s['name'] for s in staff_on_duty] + general_staff + ["VACANT", "OFF"])
 
-            # --- DETERMINE TABLE DATA ---
-            # If History exists, use it. Else, calculate it.
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                # ROTATION LOGIC
                 guards = [s for s in staff_on_duty if s['name'] != wellness and s['name'] not in recep]
                 if guards:
-                    shift_amt = selected_date.day % len(guards)
+                    # FIX: Use Day of Year (tm_yday) for consistent rotation
+                    day_of_year = selected_date.timetuple().tm_yday
+                    shift_amt = day_of_year % len(guards)
                     rotated_guards = guards[shift_amt:] + guards[:shift_amt]
                 else:
                     rotated_guards = []
@@ -195,7 +189,6 @@ if check_password():
                 df_display = pd.DataFrame(rot_data)
                 if not df_display.empty: df_display.index = df_display.index + 1
                 
-                # SAVE INITIAL CALCULATION TO HISTORY
                 st.session_state.duty_history[history_key] = df_display
 
             # --- RENDER ---
@@ -212,8 +205,6 @@ if check_password():
 
             if secret_edit:
                 st.warning("⚠️ EDIT MODE ACTIVE")
-                
-                # USE DROPDOWN (SelectboxColumn) WITH FETCHED NAMES
                 edited_df = st.data_editor(
                     df_display, 
                     column_config={
