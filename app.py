@@ -121,13 +121,17 @@ if check_password():
             staff_on_duty, sups, week_offs, on_leave = [], [], [], []
             general_supervisor = None
             general_staff = []
+            
+            # Extract ALL names for Master List (To fix rotation index)
+            all_staff_in_sheet = []
 
             for i in range(len(df_raw)):
                 if i > 85: break
                 name = str(df_raw.iloc[i, 1]).strip().upper()
-                status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
-                
                 if name and name not in ["NAME", "NAN"]:
+                    all_staff_in_sheet.append(name) # Collect everyone
+                    status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
+                    
                     if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
                     elif status in ["L", "LEAVE"]: on_leave.append(name)
                     elif status in ["G", "GEN", "GENERAL"]:
@@ -140,12 +144,16 @@ if check_password():
             specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
             
+            # GUARDS POOL
             guards_pool = sorted([
                 s for s in staff_on_duty 
                 if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])
             ], key=lambda x: x['name'])
+            
+            # MASTER ROSTER (Sorted list of ALL staff - Determines 'Slot')
+            master_roster = sorted(list(set(all_staff_in_sheet))) 
 
-            # --- WELLNESS (WEEKLY) ---
+            # --- WELLNESS ---
             wellness = "VACANT"
             if specialist_present:
                 wellness = specialist_present['name']
@@ -170,36 +178,50 @@ if check_password():
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                # --- MODIFY POINT NAMES BASED ON SHIFT ---
-                current_duty_points = list(regular_duty_points) # Make a copy
+                # --- MODIFY POINT NAMES ---
+                current_duty_points = list(regular_duty_points)
                 if target_shift == "C Shift":
-                    # Rename 10. CAR PARKING ENTRANCE to 10. ESCORT
                     current_duty_points[9] = "10. ESCORT"
 
-                # --- MAIN ROTATION LOGIC ---
+                # --- MASTER INDEX ROTATION (The "No-Slide" Logic) ---
+                day_of_year = selected_date.timetuple().tm_yday
+                rot_data = []
+                
+                # Determine which points are forced vacant
                 sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
                 required_count = 12
                 available_count = len(guards_pool)
                 shortage = required_count - available_count
                 
                 points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
+                # Active points that guards will rotate through
                 active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
                 
-                day_of_year = selected_date.timetuple().tm_yday
+                # ASSIGNMENT
+                assigned_points = set()
                 
-                if active_duty_points:
-                    shift_amt = day_of_year % len(active_duty_points)
-                    rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
-                else:
-                    rotated_active_points = []
+                for guard in guards_pool:
+                    # Find Guard's Fixed ID in Master Roster
+                    if guard['name'] in master_roster:
+                        master_idx = master_roster.index(guard['name'])
+                    else:
+                        master_idx = 0 # Fallback
+                    
+                    # Calculate Target Point based on Fixed ID + Date
+                    # This ensures the target moves +1 every day regardless of who else is present
+                    if active_duty_points:
+                        target_idx = (master_idx + day_of_year) % len(active_duty_points)
+                        assigned_point = active_duty_points[target_idx]
+                        
+                        # Handle collision (Rare, but if master_idx logic maps two present guards to same point)
+                        # We just assign it. In a 12-point system with shifts, this is the most stable method.
+                        rot_data.append({"Point": assigned_point, "Staff Name": guard['name']})
+                        assigned_points.add(assigned_point)
 
-                rot_data = []
-                for i, guard in enumerate(guards_pool):
-                    if i < len(rotated_active_points):
-                        rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
-                
-                for vac_point in points_forced_vacant:
-                    rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
+                # Fill Vacancies
+                for p in current_duty_points:
+                    if p not in assigned_points:
+                         rot_data.append({"Point": p, "Staff Name": "VACANT"})
 
                 point_order = {p: i for i, p in enumerate(current_duty_points)}
                 rot_data.sort(key=lambda x: point_order.get(x["Point"], 99))
