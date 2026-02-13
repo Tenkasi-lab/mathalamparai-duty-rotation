@@ -44,7 +44,7 @@ if check_password():
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
     
-    # --- UPDATED POINT LIST (User Requested Order) ---
+    # --- FIXED POINT ORDER ---
     regular_duty_points = [
         "1. MAIN GATE-1",
         "2. SECOND GATE",
@@ -154,11 +154,14 @@ if check_password():
             specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
             
-            guards_pool = sorted([
+            # --- KEY CHANGE: MAINTAIN SHEET ORDER (NO SORTING) ---
+            # Using 'id' (row number) to preserve the order from Google Sheet
+            guards_pool = [
                 s for s in staff_on_duty 
                 if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])
-            ], key=lambda x: x['name'])
-            
+            ]
+            # DO NOT SORT alphabetically. Keep order from sheet loop.
+
             # --- WELLNESS ---
             wellness = "VACANT"
             if specialist_present:
@@ -189,7 +192,7 @@ if check_password():
                 if target_shift == "C Shift":
                     current_duty_points[9] = "10. ESCORT"
 
-                # --- 2. VACANCIES (STRICT PRIORITY) ---
+                # --- 2. VACANCIES ---
                 sacrifice_points = ["2. SECOND GATE", "7. A BLOCK AREA", "4. PATROLLING"]
                 required_count = 12
                 available_count = len(guards_pool)
@@ -200,51 +203,29 @@ if check_password():
                 # --- 3. FILTER ACTIVE POINTS ---
                 active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
                 
-                # --- 4. ASSIGNMENT (NAME-BASED LOCK LOGIC) ---
+                # --- 4. ASSIGNMENT (SHEET ORDER PRESERVED) ---
                 rot_data = []
                 day_of_year = selected_date.timetuple().tm_yday
                 
                 if active_duty_points:
                     num_active = len(active_duty_points)
-                    assigned_slots = [None] * num_active
-                    unassigned_guards = []
                     
-                    # Step A: Try to assign guards to their "Personal Target"
-                    for guard in guards_pool:
-                        # Create a unique number from name (Name Hash)
-                        # This ensures the same person gets the same calculation regardless of shift
-                        name_val = sum(ord(c) for c in guard['name']) 
-                        
-                        # Target Slot = (Name_Value + Day) % Total_Active_Points
-                        target_slot = (name_val + day_of_year) % num_active
-                        
-                        if assigned_slots[target_slot] is None:
-                            assigned_slots[target_slot] = guard['name']
+                    # LOGIC: 
+                    # We have a fixed list of guards in Sheet Order: [Guard_1, Guard_2, Guard_3...]
+                    # We have a list of Active Points.
+                    # We just rotate the POINTS list by Date.
+                    
+                    shift_amt = day_of_year % num_active
+                    rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
+                    
+                    for i, guard in enumerate(guards_pool):
+                        if i < num_active:
+                            # 1st Guard in Sheet gets 1st Rotated Point
+                            rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
                         else:
-                            # If target is taken (Collision), add to waiting list
-                            unassigned_guards.append(guard['name'])
-                    
-                    # Step B: Fill the empty slots with unassigned guards
-                    # This resolves collisions sequentially
-                    for guard_name in unassigned_guards:
-                        for i in range(num_active):
-                            if assigned_slots[i] is None:
-                                assigned_slots[i] = guard_name
-                                break
-                                
-                    # Step C: Build the Data
-                    for i in range(num_active):
-                        if assigned_slots[i]:
-                            rot_data.append({"Point": active_duty_points[i], "Staff Name": assigned_slots[i]})
-                    
-                    # Step D: Handle Extra Staff (If any remained unassigned due to surplus)
-                    # (Though the logic above fills slots first, if guards > points, some are left)
-                    # Let's verify if any guards are left out
-                    assigned_names = [x for x in assigned_slots if x is not None]
-                    for guard in guards_pool:
-                        if guard['name'] not in assigned_names:
-                             extra_idx = len(rot_data) - num_active + 1
-                             rot_data.append({"Point": f"EXTRA-{extra_idx}. GENERAL RELIEVER", "Staff Name": guard['name']})
+                            # Surplus Staff -> General Reliever
+                            extra_num = i - num_active + 1
+                            rot_data.append({"Point": f"EXTRA-{extra_num}. GENERAL RELIEVER", "Staff Name": guard['name']})
 
                 # --- 5. FILL VACANCIES ---
                 for vac_point in points_forced_vacant:
