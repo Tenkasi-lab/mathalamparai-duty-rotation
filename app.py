@@ -135,89 +135,80 @@ if check_password():
                     elif any(s in name for s in supervisors_pool) and status == shift_code: sups.append(name)
                     elif status == shift_code: staff_on_duty.append({'id': i, 'name': name})
 
-            # --- POOLS ---
+            # --- SEPARATE STAFF POOLS ---
+            # 1. Specialist
             specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
+            
+            # 2. Regular Receptionists
             regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
             
+            # 3. Available Guards (Pool for Relief & Duty)
+            # Remove specialists and receptionists from this pool
             guards_pool = sorted([
                 s for s in staff_on_duty 
                 if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])
             ], key=lambda x: x['name'])
-            
-            # --- WELLNESS ---
+
+            # --- WELLNESS LOGIC (ROTATION FIX) ---
             wellness = "VACANT"
             if specialist_present:
                 wellness = specialist_present['name']
-            elif selected_date.weekday() == 1: 
+            elif selected_date.weekday() == 1: # Tuesday
+                # RELIEVER LOGIC: Rotate based on WEEK NUMBER
                 if guards_pool:
                     week_num = selected_date.isocalendar()[1]
                     reliever_idx = week_num % len(guards_pool)
-                    reliever = guards_pool.pop(reliever_idx)
+                    reliever = guards_pool.pop(reliever_idx) # Remove from guards so they don't get other duty
                     wellness = reliever['name']
 
-            # --- RECEPTION (SATURDAY) ---
+            # --- RECEPTION LOGIC (SATURDAY RELIEF FIX) ---
             final_recep_team = [r['name'] for r in regular_recep_present]
-            if selected_date.weekday() == 5 and guards_pool: 
+            
+            # If Saturday (5) AND we need a reliever (assuming usually 2 are needed)
+            # Logic: If someone is WO, pool will be short. Add a reliever.
+            if selected_date.weekday() == 5 and guards_pool:
+                # Rotate Reliever based on Week Number (Offset to avoid same as Wellness)
                 week_num = selected_date.isocalendar()[1]
-                recep_reliever_idx = (week_num + 3) % len(guards_pool)
-                recep_reliever = guards_pool.pop(recep_reliever_idx)
+                recep_reliever_idx = (week_num + 2) % len(guards_pool)
+                recep_reliever = guards_pool.pop(recep_reliever_idx) # Remove from guards
                 final_recep_team.append(recep_reliever['name'])
             
+            # Display logic
             recep_display = final_recep_team[:2]
+
+            # Dropdown List
             dropdown_names = sorted([s['name'] for s in staff_on_duty] + general_staff + ["VACANT", "OFF"])
 
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                # --- 1. SET DUTY POINT NAMES ---
-                current_duty_points = list(regular_duty_points)
-                if target_shift == "C Shift":
-                    current_duty_points[9] = "10. ESCORT"
-
-                # --- 2. IDENTIFY VACANCIES ---
+                # --- MAIN DUTY ROTATION (guards_pool now excludes Wellness & Recep Relievers) ---
+                
                 sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
                 required_count = 12
                 available_count = len(guards_pool)
                 shortage = required_count - available_count
                 
-                # If we have SURPLUS staff (available > required), shortage is negative.
-                # In that case, we have NO forced vacancies.
                 points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
+                active_duty_points = [p for p in regular_duty_points if p not in points_forced_vacant]
                 
-                # --- 3. FILTER ACTIVE POINTS ---
-                active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
-                
-                # --- 4. STRICT SEQUENTIAL ASSIGNMENT (NO DUPLICATES) ---
-                rot_data = []
                 day_of_year = selected_date.timetuple().tm_yday
-                
                 if active_duty_points:
-                    # Rotate the POINTS list, not the guards logic.
                     shift_amt = day_of_year % len(active_duty_points)
                     rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
-                    
-                    # Map Guards to Points strictly.
-                    # Guard 1 -> Point 1
-                    # Guard 2 -> Point 2
-                    # Guard 13 (if exists) -> "GENERAL RELIEVER"
-                    
-                    for i, guard in enumerate(guards_pool):
-                        if i < len(rotated_active_points):
-                            # Normal Assignment
-                            rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
-                        else:
-                            # SURPLUS STAFF HANDLING (Prevents duplicates)
-                            extra_num = i - len(rotated_active_points) + 1
-                            rot_data.append({"Point": f"EXTRA-{extra_num}. GENERAL RELIEVER", "Staff Name": guard['name']})
+                else:
+                    rotated_active_points = []
 
-                # --- 5. FILL VACANCIES (If Shortage) ---
+                rot_data = []
+                for i, guard in enumerate(guards_pool):
+                    if i < len(rotated_active_points):
+                        rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
+                
                 for vac_point in points_forced_vacant:
                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
 
-                # --- 6. SORT & DISPLAY ---
-                point_order = {p: i for i, p in enumerate(current_duty_points)}
-                # Ensure "EXTRA" points come last
-                rot_data.sort(key=lambda x: point_order.get(x["Point"], 100))
+                point_order = {p: i for i, p in enumerate(regular_duty_points)}
+                rot_data.sort(key=lambda x: point_order.get(x["Point"], 99))
 
                 if target_shift == "A Shift":
                     gen_start_point = 13
