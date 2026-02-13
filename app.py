@@ -180,13 +180,13 @@ if check_password():
                 available_count = len(guards_pool)
                 shortage = required_count - available_count
                 
-                # Only force vacancies if we have FEWER staff than points
+                # Force vacancies ONLY if shortage exists
                 points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
                 
                 # --- 3. FILTER ACTIVE POINTS ---
                 active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
                 
-                # --- 4. ASSIGNMENT (WITH SURPLUS HANDLER) ---
+                # --- 4. ASSIGNMENT (NO DUPLICATE LOGIC) ---
                 rot_data = []
                 day_of_year = selected_date.timetuple().tm_yday
                 
@@ -199,9 +199,7 @@ if check_password():
                             # Normal Assignment
                             rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
                         else:
-                            # --- FIX FOR DUPLICATES ---
-                            # If we have more staff than points, assign them as GENERAL RELIEVER
-                            # This prevents the loop from wrapping around and assigning "B Block" again.
+                            # If Extra Staff exists (Surplus), assign as Reliever
                             extra_num = i - len(rotated_active_points) + 1
                             rot_data.append({"Point": f"EXTRA-{extra_num}. GENERAL RELIEVER", "Staff Name": guard['name']})
 
@@ -210,7 +208,6 @@ if check_password():
                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
 
                 # --- 6. SORT & DISPLAY ---
-                # Regular points sort 1-12, Extras sort 100+
                 point_order = {p: i for i, p in enumerate(current_duty_points)}
                 rot_data.sort(key=lambda x: point_order.get(x["Point"], 100))
 
