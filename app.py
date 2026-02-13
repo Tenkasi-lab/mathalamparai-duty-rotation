@@ -155,7 +155,7 @@ if check_password():
                     reliever = guards_pool.pop(reliever_idx)
                     wellness = reliever['name']
 
-            # --- RECEPTION (SATURDAY) ---
+            # --- RECEPTION ---
             final_recep_team = [r['name'] for r in regular_recep_present]
             if selected_date.weekday() == 5 and guards_pool: 
                 week_num = selected_date.isocalendar()[1]
@@ -174,7 +174,7 @@ if check_password():
                 if target_shift == "C Shift":
                     current_duty_points[9] = "10. ESCORT"
 
-                # --- 2. IDENTIFY VACANCIES (Shortage Check) ---
+                # --- 2. VACANCIES ---
                 sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
                 required_count = 12
                 available_count = len(guards_pool)
@@ -186,7 +186,7 @@ if check_password():
                 # --- 3. FILTER ACTIVE POINTS ---
                 active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
                 
-                # --- 4. ASSIGNMENT (NO DUPLICATE LOGIC) ---
+                # --- 4. ASSIGNMENT (THE FIX FOR 13th B SHIFT) ---
                 rot_data = []
                 day_of_year = selected_date.timetuple().tm_yday
                 
@@ -195,15 +195,16 @@ if check_password():
                     rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
                     
                     for i, guard in enumerate(guards_pool):
+                        # ONLY assign regular points if index is within range
                         if i < len(rotated_active_points):
-                            # Normal Assignment
                             rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
                         else:
-                            # If Extra Staff exists (Surplus), assign as Reliever
+                            # If we have 14 guards but only 12 points, the last 2 become GENERAL RELIEVER
+                            # This PREVENTS them from getting Point 1 and 2 again.
                             extra_num = i - len(rotated_active_points) + 1
                             rot_data.append({"Point": f"EXTRA-{extra_num}. GENERAL RELIEVER", "Staff Name": guard['name']})
 
-                # --- 5. FILL VACANCIES (If Shortage) ---
+                # --- 5. FILL VACANCIES ---
                 for vac_point in points_forced_vacant:
                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
 
