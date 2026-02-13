@@ -43,7 +43,22 @@ if check_password():
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
-    regular_duty_points = ["1. MAIN GATE-1", "2. MAIN GATE-2", "3. SECOND GATE", "4. CAR PARKING", "5. PATROLLING", "6. DG POWER ROOM", "7. C BLOCK", "8. B BLOCK", "9. A BLOCK", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
+    
+    # --- NEW POINT LIST ORDER (AS PER YOUR REQUEST) ---
+    regular_duty_points = [
+        "1. MAIN GATE-1",
+        "2. SECOND GATE",
+        "3. CAR PARKING",
+        "4. PATROLLING",
+        "5. MAIN GATE-2",
+        "6. DG POWER ROOM",
+        "7. A BLOCK AREA",
+        "8. B BLOCK AREA",
+        "9. C BLOCK AREA",
+        "10. CAR PARKING ENTRANCE",
+        "11. CIVIL MAIN GATE",
+        "12. NEW CANTEEN"
+    ]
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
 
@@ -174,33 +189,39 @@ if check_password():
                 if target_shift == "C Shift":
                     current_duty_points[9] = "10. ESCORT"
 
-                # --- 2. IDENTIFY VACANCIES ---
-                sacrifice_points = ["3. SECOND GATE", "9. A BLOCK", "5. PATROLLING"]
+                # --- 2. IDENTIFY VACANCIES (STRICT PRIORITY) ---
+                # Based on your NEW List: 
+                # 2. SECOND GATE, 7. A BLOCK AREA, 4. PATROLLING
+                sacrifice_points = ["2. SECOND GATE", "7. A BLOCK AREA", "4. PATROLLING"]
                 required_count = 12
                 available_count = len(guards_pool)
                 shortage = required_count - available_count
                 
-                # Force vacancies ONLY if shortage exists
                 points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
                 
                 # --- 3. FILTER ACTIVE POINTS ---
+                # Remove vacant points -> Remaining list is what we rotate
                 active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
                 
-                # --- 4. ASSIGNMENT ---
+                # --- 4. ASSIGNMENT (NO REPEATS FOR 12 DAYS) ---
                 rot_data = []
+                # Use Day of Year to shift the starting position of the list
                 day_of_year = selected_date.timetuple().tm_yday
                 
                 if active_duty_points:
-                    shift_amt = day_of_year % len(active_duty_points)
-                    rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
+                    num_active = len(active_duty_points)
                     
                     for i, guard in enumerate(guards_pool):
-                        if i < len(rotated_active_points):
-                            # NO DUPLICATES: One Guard = One Point
-                            rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
+                        if i < num_active:
+                            # Formula: (Guard_Index + Day) % Total_Points
+                            # This ensures Guard 1 gets Point 1, then Point 2, then Point 3...
+                            # Since list length is ~10-12, it takes 10-12 days to repeat.
+                            point_idx = (i + day_of_year) % num_active
+                            assigned_point = active_duty_points[point_idx]
+                            rot_data.append({"Point": assigned_point, "Staff Name": guard['name']})
                         else:
-                            # EXTRA STAFF: General Reliever (Safe from duplicates)
-                            extra_num = i - len(rotated_active_points) + 1
+                            # Surplus Staff -> General Reliever (Safe, no duplicate)
+                            extra_num = i - num_active + 1
                             rot_data.append({"Point": f"EXTRA-{extra_num}. GENERAL RELIEVER", "Staff Name": guard['name']})
 
                 # --- 5. FILL VACANCIES ---
