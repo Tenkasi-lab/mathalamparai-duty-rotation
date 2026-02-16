@@ -40,13 +40,21 @@ def check_password():
 # --- 3. DATABASE FUNCTIONS ---
 def load_database():
     if os.path.exists(CSV_FILE):
-        return pd.read_csv(CSV_FILE)
+        df = pd.read_csv(CSV_FILE)
+        # --- AUTO-FIX: If 'Role' column is missing in old file, add it ---
+        if "Role" not in df.columns:
+            df["Role"] = "GUARD" # Default value
+            df.to_csv(CSV_FILE, index=False)
+        return df
     else:
         return pd.DataFrame(columns=["Date", "Shift", "Staff Name", "Point", "Role"])
 
 def save_to_database(new_data):
     if os.path.exists(CSV_FILE):
         history_df = pd.read_csv(CSV_FILE)
+        if "Role" not in history_df.columns: # Safety check
+            history_df["Role"] = "GUARD"
+            
         # Remove existing entries for this shift to avoid duplicates
         date_str = new_data[0]["Date"]
         shift_str = new_data[0]["Shift"]
@@ -65,6 +73,8 @@ def get_blocked_points(staff_name, current_date):
         return []
     
     df = pd.read_csv(CSV_FILE)
+    if "Role" not in df.columns: return []
+    
     df["DateObj"] = pd.to_datetime(df["Date"])
     current_date_obj = pd.to_datetime(current_date)
     
@@ -81,6 +91,8 @@ def get_role_summary(date_str, shift_str):
         return "N/A", "N/A", "N/A"
     
     df = pd.read_csv(CSV_FILE)
+    if "Role" not in df.columns: return "N/A", "N/A", "N/A"
+    
     # Filter for specific Date and Shift
     mask = (df["Date"] == date_str) & (df["Shift"] == shift_str)
     shift_df = df[mask]
@@ -144,20 +156,33 @@ if check_password():
         # Check DB
         db_df = load_database()
         date_str_key = selected_date.strftime("%Y-%m-%d")
-        existing_duty = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift) & (db_df["Role"] == "GUARD")]
         
-        # We need to know if we have ANY data for this shift (Guard or Supervisor)
+        # Check if we have data for this date/shift
         has_data = not db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)].empty
         
         if has_data:
             # LOAD FROM DB
             st.success("✅ LOADED FROM DATABASE (Permanent Record)")
             
-            # 1. Get Guard Duty
-            df_display = existing_duty[["Point", "Staff Name"]]
-            
-            # 2. Get Summary Roles
+            # 1. Get Summary Roles
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
+            
+            # 2. Get Guard Duty
+            # Filter for GUARDS only to show in table
+            guard_df = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift) & (db_df["Role"] == "GUARD")]
+            
+            # Sort the loaded data
+            point_order = {p: i for i, p in enumerate(regular_duty_points)}
+            # Helper to sort: Regular points first, then Extras
+            def sort_key(row):
+                pt = row["Point"]
+                return point_order.get(pt, 100 + int(pt.split('-')[1]) if "EXTRA" in pt else 200)
+
+            # Creating a temporary list to sort properly if needed, but simple sort works:
+            df_display = guard_df[["Point", "Staff Name"]].copy()
+            # Simple custom sort for display
+            df_display["sort_val"] = df_display["Point"].apply(lambda x: point_order.get(x, 999))
+            df_display = df_display.sort_values("sort_val").drop("sort_val", axis=1)
             
         else:
             # CALCULATE NEW
@@ -310,12 +335,6 @@ if check_password():
         </div>""", unsafe_allow_html=True)
 
         st.table(df_display)
-        
-        # Display Week Off & Leave
-        # Note: If loaded from DB, we can't show WO/Leave accurately without re-fetching sheet.
-        # But usually users care about duty table stability.
-        # If needed, we can re-fetch sheet just for WO/Leave or save that to DB too.
-        # For now, hiding WO/Leave when loading from DB to avoid confusion.
 
     except Exception as e:
         st.error(f"System Error: {e}")
