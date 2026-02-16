@@ -42,8 +42,7 @@ def load_database():
     if os.path.exists(CSV_FILE):
         try:
             df = pd.read_csv(CSV_FILE)
-            if "Role" not in df.columns:
-                df["Role"] = "GUARD" # Fix for old files
+            if "Role" not in df.columns: df["Role"] = "GUARD"
             return df
         except:
             return pd.DataFrame(columns=["Date", "Shift", "Staff Name", "Point", "Role"])
@@ -52,24 +51,33 @@ def load_database():
 
 def save_to_database(new_data):
     if os.path.exists(CSV_FILE):
-        try:
-            history_df = pd.read_csv(CSV_FILE)
-            if "Role" not in history_df.columns: history_df["Role"] = "GUARD"
-            
-            # Remove existing entries for this shift (Overwrite)
-            date_str = new_data[0]["Date"]
-            shift_str = new_data[0]["Shift"]
-            history_df = history_df[~((history_df["Date"] == date_str) & (history_df["Shift"] == shift_str))]
-            
-            new_df = pd.DataFrame(new_data)
-            updated_df = pd.concat([history_df, new_df], ignore_index=True)
-        except:
-            updated_df = pd.DataFrame(new_data)
+        history_df = pd.read_csv(CSV_FILE)
+        if "Role" not in history_df.columns: history_df["Role"] = "GUARD"
+        
+        # Remove existing entries for this shift (Overwrite logic)
+        date_str = new_data[0]["Date"]
+        shift_str = new_data[0]["Shift"]
+        history_df = history_df[~((history_df["Date"] == date_str) & (history_df["Shift"] == shift_str))]
+        
+        new_df = pd.DataFrame(new_data)
+        updated_df = pd.concat([history_df, new_df], ignore_index=True)
     else:
         updated_df = pd.DataFrame(new_data)
     
     updated_df.to_csv(CSV_FILE, index=False)
     return updated_df
+
+def update_database_entry(date_str, shift_str, staff_name, new_point):
+    """Specific function to update a single entry from the Edit Menu"""
+    if os.path.exists(CSV_FILE):
+        df = pd.read_csv(CSV_FILE)
+        # Find the row matching Date, Shift, and Staff Name
+        mask = (df["Date"] == date_str) & (df["Shift"] == shift_str) & (df["Staff Name"] == staff_name)
+        if not df.loc[mask].empty:
+            df.loc[mask, "Point"] = new_point
+            df.to_csv(CSV_FILE, index=False)
+            return True
+    return False
 
 def get_blocked_points(staff_name, current_date):
     if not os.path.exists(CSV_FILE): return []
@@ -97,9 +105,6 @@ if check_password():
         [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
         .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
         .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; }
-        .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
-        .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
-        .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
         .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
         .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; }
@@ -117,6 +122,8 @@ if check_password():
     
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
+    st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
+    secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
     # --- MAIN DISPLAY ---
     ist = pytz.timezone('Asia/Kolkata')
@@ -134,22 +141,18 @@ if check_password():
         db_df = load_database()
         date_str_key = selected_date.strftime("%Y-%m-%d")
         
-        # Filter DB for this shift
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
         
-        # 2. CHECK IF DATA IS COMPLETE (Must have guards AND roles like WO/Sup)
-        # If we have guards but NO "WO" or "SUPERVISOR" rows, it means it's an OLD/INCOMPLETE record.
-        # So we force recalculate to fix it.
+        # Check integrity
         has_guards = not shift_data[shift_data["Role"] == "GUARD"].empty
         has_details = not shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])].empty
-        
         should_calculate = not has_guards or (has_guards and not has_details)
 
         if not should_calculate:
             # --- DISPLAY FROM DB ---
-            st.success("✅ LOADED FROM DATABASE (Permanent Record)")
+            if not secret_edit:
+                st.success("✅ LOADED FROM DATABASE")
             
-            # Roles
             sups = shift_data[shift_data["Role"] == "SUPERVISOR"]["Staff Name"].tolist()
             recep = shift_data[shift_data["Role"] == "RECEPTION"]["Staff Name"].tolist()
             well = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
@@ -162,10 +165,9 @@ if check_password():
             wo_names = ", ".join(wo) if wo else "NONE"
             ol_names = ", ".join(le) if le else "NONE"
             
-            # Guards Table
             guard_df = shift_data[shift_data["Role"] == "GUARD"].copy()
             
-            # Sort Logic
+            # Sort
             point_order = {p: i for i, p in enumerate(regular_duty_points)}
             def sort_key(pt):
                 return point_order.get(pt, 100 + int(pt.split('-')[1]) if "EXTRA" in pt else 200)
@@ -174,7 +176,7 @@ if check_password():
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            # --- CALCULATE NEW (Auto-Fixing Missing Data) ---
+            # --- CALCULATE NEW ---
             with st.spinner("Fetching Google Sheet & Calculating..."):
                 df_raw = pd.read_csv(url, header=None)
                 day_str = str(selected_date.day)
@@ -208,10 +210,8 @@ if check_password():
 
                     specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
                     regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
-                    
                     guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
 
-                    # Wellness & Reception Logic
                     wellness = "VACANT"
                     if specialist_present: wellness = specialist_present['name']
                     elif selected_date.weekday() == 1 and guards_pool:
@@ -223,7 +223,6 @@ if check_password():
                         week_num = selected_date.isocalendar()[1]
                         final_recep_team.append(guards_pool.pop((week_num + 3) % len(guards_pool))['name'])
                     
-                    # Points Logic
                     current_duty_points = list(regular_duty_points)
                     if target_shift == "C Shift": current_duty_points[9] = "10. ESCORT"
 
@@ -233,7 +232,6 @@ if check_password():
                     active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
 
                     # --- ASSIGNMENT ---
-                    rot_data = []
                     available_today = list(active_duty_points)
                     day_of_year = selected_date.timetuple().tm_yday
                     if available_today:
@@ -257,15 +255,14 @@ if check_password():
                         if not assigned and available_today:
                             final_assignments[guard['name']] = available_today.pop(0)
 
-                    # --- PREPARE SAVE DATA (ALL ROLES) ---
+                    # --- SAVE DATA ---
+                    rot_data = []
                     save_list = []
                     
-                    # Guards
                     for name, point in final_assignments.items():
                         rot_data.append({"Point": point, "Staff Name": name})
                         save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": name, "Point": point, "Role": "GUARD"})
                     
-                    # Extras
                     assigned_names = final_assignments.keys()
                     extra_c = 1
                     for guard in guards_pool:
@@ -275,12 +272,10 @@ if check_password():
                             save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": guard['name'], "Point": p_name, "Role": "GUARD"})
                             extra_c += 1
 
-                    # Vacancies
                     for vac in points_forced_vacant:
                         rot_data.append({"Point": vac, "Staff Name": "VACANT"})
                         save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": vac, "Role": "GUARD"})
                     
-                    # General Staff
                     if target_shift == "A Shift":
                         gen_start = 13
                         for g in general_staff:
@@ -289,7 +284,6 @@ if check_password():
                             save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": g, "Point": p_name, "Role": "GUARD"})
                             gen_start += 1
                             
-                    # SAVE AUX ROLES
                     for s in sups: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": s, "Point": "SUPERVISOR", "Role": "SUPERVISOR"})
                     for r in final_recep_team: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": r, "Point": "RECEPTION", "Role": "RECEPTION"})
                     if wellness != "VACANT": save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": wellness, "Point": "WELLNESS", "Role": "WELLNESS"})
@@ -298,7 +292,7 @@ if check_password():
 
                     save_to_database(save_list)
                     
-                    # DISPLAY
+                    # Vars for display
                     point_order = {p: i for i, p in enumerate(current_duty_points)}
                     rot_data.sort(key=lambda x: point_order.get(x["Point"], 100))
                     df_display = pd.DataFrame(rot_data)
@@ -318,7 +312,62 @@ if check_password():
             <div class="stat-card"><small>WELLNESS</small><br><b>{wellness_text}</b></div>
         </div>""", unsafe_allow_html=True)
 
-        st.table(df_display)
+        if secret_edit:
+            st.warning("⚠️ EDIT MODE ENABLED - Changes are saved permanently!")
+            # Add ALL available staff for dropdown
+            dropdown_names = sorted(df_display["Staff Name"].unique().tolist() + 
+                                  shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])]["Staff Name"].tolist() + 
+                                  ["VACANT"])
+            
+            edited_df = st.data_editor(
+                df_display, 
+                column_config={
+                    "Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names)
+                }, 
+                use_container_width=True,
+                key="data_editor",
+                hide_index=True
+            )
+            
+            if st.button("💾 SAVE CHANGES TO DATABASE", type="primary"):
+                # 1. Read the Edited Dataframe
+                # 2. Update the CSV File row by row
+                for index, row in edited_df.iterrows():
+                    point = row["Point"]
+                    staff = row["Staff Name"]
+                    # Update DB function
+                    update_database_entry(date_str_key, target_shift, staff, point)
+                    # Note: Swapping staff logic is complex in CSV. 
+                    # Here we assume user knows what they are doing and just overwrite the point for that staff.
+                    # A better approach is to delete all GUARD entries for this shift and re-save the edited_df.
+                
+                # RE-SAVE STRATEGY: 
+                # To handle swaps correctly, we should Re-Save the entire GUARD list for this shift.
+                current_db = pd.read_csv(CSV_FILE)
+                # Keep Non-Guard roles for this shift
+                mask_keep = ~((current_db["Date"] == date_str_key) & 
+                              (current_db["Shift"] == target_shift) & 
+                              (current_db["Role"] == "GUARD"))
+                new_db = current_db[mask_keep].copy()
+                
+                # Create new rows from edited_df
+                new_rows = []
+                for _, row in edited_df.iterrows():
+                    new_rows.append({
+                        "Date": date_str_key, 
+                        "Shift": target_shift, 
+                        "Staff Name": row["Staff Name"], 
+                        "Point": row["Point"], 
+                        "Role": "GUARD"
+                    })
+                
+                final_db = pd.concat([new_db, pd.DataFrame(new_rows)], ignore_index=True)
+                final_db.to_csv(CSV_FILE, index=False)
+                
+                st.success("Changes Saved Permanently! Rotation will update automatically.")
+                st.rerun()
+        else:
+            st.table(df_display)
         
         st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
             <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
