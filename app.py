@@ -42,12 +42,12 @@ def load_database():
     if os.path.exists(CSV_FILE):
         return pd.read_csv(CSV_FILE)
     else:
-        return pd.DataFrame(columns=["Date", "Shift", "Staff Name", "Point"])
+        return pd.DataFrame(columns=["Date", "Shift", "Staff Name", "Point", "Role"])
 
 def save_to_database(new_data):
     if os.path.exists(CSV_FILE):
         history_df = pd.read_csv(CSV_FILE)
-        # Remove existing entries for this shift to avoid duplicates (Overwriting)
+        # Remove existing entries for this shift to avoid duplicates
         date_str = new_data[0]["Date"]
         shift_str = new_data[0]["Shift"]
         history_df = history_df[~((history_df["Date"] == date_str) & (history_df["Shift"] == shift_str))]
@@ -75,6 +75,27 @@ def get_blocked_points(staff_name, current_date):
     
     history = df.loc[mask, "Point"].tolist()
     return history
+
+def get_role_summary(date_str, shift_str):
+    if not os.path.exists(CSV_FILE):
+        return "N/A", "N/A", "N/A"
+    
+    df = pd.read_csv(CSV_FILE)
+    # Filter for specific Date and Shift
+    mask = (df["Date"] == date_str) & (df["Shift"] == shift_str)
+    shift_df = df[mask]
+    
+    if shift_df.empty:
+        return "N/A", "N/A", "N/A"
+
+    # Extract roles
+    sups = shift_df[shift_df["Role"] == "SUPERVISOR"]["Staff Name"].tolist()
+    recep = shift_df[shift_df["Role"] == "RECEPTION"]["Staff Name"].tolist()
+    well = shift_df[shift_df["Role"] == "WELLNESS"]["Staff Name"].tolist()
+    
+    return ", ".join(sups) if sups else "N/A", \
+           ", ".join(recep) if recep else "N/A", \
+           ", ".join(well) if well else "N/A"
 
 if check_password():
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
@@ -107,7 +128,6 @@ if check_password():
     
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
-    force_regenerate = st.sidebar.button("🔄 REGENERATE DUTY", help="Click to Force New Calculation")
     
     # --- MAIN DISPLAY ---
     ist = pytz.timezone('Asia/Kolkata')
@@ -121,25 +141,27 @@ if check_password():
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     try:
-        # Check if duty already exists in DB
+        # Check DB
         db_df = load_database()
         date_str_key = selected_date.strftime("%Y-%m-%d")
-        existing_duty = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
+        existing_duty = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift) & (db_df["Role"] == "GUARD")]
         
-        should_calculate = existing_duty.empty or force_regenerate
+        # We need to know if we have ANY data for this shift (Guard or Supervisor)
+        has_data = not db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)].empty
         
-        if not should_calculate:
+        if has_data:
+            # LOAD FROM DB
             st.success("✅ LOADED FROM DATABASE (Permanent Record)")
+            
+            # 1. Get Guard Duty
             df_display = existing_duty[["Point", "Staff Name"]]
             
-            # Fetch summary for display
-            sups_text = "See Database" # Simplified for loaded view
-            recep_text = "See Database"
-            wellness_text = "See Database"
+            # 2. Get Summary Roles
+            sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
             
         else:
-            # --- CALCULATE NEW DUTY ---
-            with st.spinner("Fetching Google Sheet & Calculating History..."):
+            # CALCULATE NEW
+            with st.spinner("Fetching Google Sheet & Calculating..."):
                 df_raw = pd.read_csv(url, header=None)
                 day_str = str(selected_date.day)
                 date_col_idx = None
@@ -196,11 +218,10 @@ if check_password():
                     points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
                     active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
 
-                    # --- 🔥 ASSIGNMENT WITH HISTORY CHECK ---
+                    # --- ASSIGNMENT WITH HISTORY CHECK ---
                     rot_data = []
                     available_today = list(active_duty_points)
                     
-                    # Date-Shuffle for Randomness
                     day_of_year = selected_date.timetuple().tm_yday
                     if available_today:
                         shift_amt = day_of_year % len(available_today)
@@ -209,12 +230,10 @@ if check_password():
                     final_assignments = {}
                     
                     for guard in guards_pool:
-                        # CHECK DATABASE FOR HISTORY
                         history = get_blocked_points(guard['name'], date_str_key)
                         
                         assigned = False
                         for point in available_today:
-                            # Fuzzy check if point is in history
                             is_blocked = False
                             for blocked_pt in history:
                                 if len(blocked_pt) > 4 and (blocked_pt in point or point in blocked_pt):
@@ -231,36 +250,48 @@ if check_password():
 
                     # Prepare Save Data
                     save_list = []
+                    
+                    # 1. Guards
                     for name, point in final_assignments.items():
                         rot_data.append({"Point": point, "Staff Name": name})
-                        save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": name, "Point": point})
+                        save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": name, "Point": point, "Role": "GUARD"})
                     
-                    # Extras
+                    # 2. Extras
                     assigned_names = final_assignments.keys()
                     extra_c = 1
                     for guard in guards_pool:
                         if guard['name'] not in assigned_names:
                             p_name = f"EXTRA-{extra_c}. GENERAL RELIEVER"
                             rot_data.append({"Point": p_name, "Staff Name": guard['name']})
-                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": guard['name'], "Point": p_name})
+                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": guard['name'], "Point": p_name, "Role": "GUARD"})
                             extra_c += 1
 
+                    # 3. Vacancies
                     for vac in points_forced_vacant:
                         rot_data.append({"Point": vac, "Staff Name": "VACANT"})
-                        save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": vac})
+                        save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": vac, "Role": "GUARD"})
 
-                    # Add General Staff
+                    # 4. General Staff
                     if target_shift == "A Shift":
                         gen_start = 13
                         for g in general_staff:
                             p_name = f"{gen_start}. OLD CAR PARKING (General)"
                             rot_data.append({"Point": p_name, "Staff Name": g})
-                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": g, "Point": p_name})
+                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": g, "Point": p_name, "Role": "GUARD"})
                             gen_start += 1
+                            
+                    # 5. SAVE ROLES (Supervisor, Reception, Wellness) to DB for later retrieval
+                    for s in sups:
+                         save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": s, "Point": "SUPERVISOR", "Role": "SUPERVISOR"})
+                    for r in final_recep_team:
+                         save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": r, "Point": "RECEPTION", "Role": "RECEPTION"})
+                    if wellness != "VACANT":
+                         save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": wellness, "Point": "WELLNESS", "Role": "WELLNESS"})
 
                     # SAVE TO DB PERMANENTLY
                     save_to_database(save_list)
                     
+                    # Display Vars
                     point_order = {p: i for i, p in enumerate(current_duty_points)}
                     rot_data.sort(key=lambda x: point_order.get(x["Point"], 100))
                     df_display = pd.DataFrame(rot_data)
@@ -271,7 +302,20 @@ if check_password():
 
         # --- RENDER ---
         st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+        
+        st.markdown(f"""<div class="stat-row">
+            <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
+            <div class="stat-card"><small>RECEPTION</small><br><b>{recep_text}</b></div>
+            <div class="stat-card"><small>WELLNESS</small><br><b>{wellness_text}</b></div>
+        </div>""", unsafe_allow_html=True)
+
         st.table(df_display)
+        
+        # Display Week Off & Leave
+        # Note: If loaded from DB, we can't show WO/Leave accurately without re-fetching sheet.
+        # But usually users care about duty table stability.
+        # If needed, we can re-fetch sheet just for WO/Leave or save that to DB too.
+        # For now, hiding WO/Leave when loading from DB to avoid confusion.
 
     except Exception as e:
         st.error(f"System Error: {e}")
