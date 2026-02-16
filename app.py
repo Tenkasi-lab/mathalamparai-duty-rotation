@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import urllib.parse
 import pytz
 
@@ -44,20 +44,10 @@ if check_password():
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
     
-    # --- FIXED POINT ORDER ---
     regular_duty_points = [
-        "1. MAIN GATE-1",
-        "2. SECOND GATE",
-        "3. CAR PARKING",
-        "4. PATROLLING",
-        "5. MAIN GATE-2",
-        "6. DG POWER ROOM",
-        "7. A BLOCK AREA",
-        "8. B BLOCK AREA",
-        "9. C BLOCK AREA",
-        "10. CAR PARKING ENTRANCE",
-        "11. CIVIL MAIN GATE",
-        "12. NEW CANTEEN"
+        "1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING",
+        "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA",
+        "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"
     ]
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
@@ -154,13 +144,10 @@ if check_password():
             specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
             
-            # --- KEY CHANGE: MAINTAIN SHEET ORDER (NO SORTING) ---
-            # Using 'id' (row number) to preserve the order from Google Sheet
             guards_pool = [
                 s for s in staff_on_duty 
                 if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])
             ]
-            # DO NOT SORT alphabetically. Keep order from sheet loop.
 
             # --- WELLNESS ---
             wellness = "VACANT"
@@ -187,51 +174,81 @@ if check_password():
             if history_key in st.session_state.duty_history:
                 df_display = st.session_state.duty_history[history_key]
             else:
-                # --- 1. SET DUTY POINT NAMES ---
                 current_duty_points = list(regular_duty_points)
                 if target_shift == "C Shift":
                     current_duty_points[9] = "10. ESCORT"
 
-                # --- 2. VACANCIES ---
                 sacrifice_points = ["2. SECOND GATE", "7. A BLOCK AREA", "4. PATROLLING"]
                 required_count = 12
                 available_count = len(guards_pool)
                 shortage = required_count - available_count
-                
                 points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
-                
-                # --- 3. FILTER ACTIVE POINTS ---
                 active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
                 
-                # --- 4. ASSIGNMENT (SHEET ORDER PRESERVED) ---
-                rot_data = []
-                day_of_year = selected_date.timetuple().tm_yday
+                # --- NEW LOGIC: HISTORY ANALYZER (PAST 5 DAYS) ---
+                staff_blocked_points = {g['name']: [] for g in guards_pool}
                 
-                if active_duty_points:
-                    num_active = len(active_duty_points)
-                    
-                    # LOGIC: 
-                    # We have a fixed list of guards in Sheet Order: [Guard_1, Guard_2, Guard_3...]
-                    # We have a list of Active Points.
-                    # We just rotate the POINTS list by Date.
-                    
-                    shift_amt = day_of_year % num_active
-                    rotated_active_points = active_duty_points[shift_amt:] + active_duty_points[:shift_amt]
-                    
-                    for i, guard in enumerate(guards_pool):
-                        if i < num_active:
-                            # 1st Guard in Sheet gets 1st Rotated Point
-                            rot_data.append({"Point": rotated_active_points[i], "Staff Name": guard['name']})
-                        else:
-                            # Surplus Staff -> General Reliever
-                            extra_num = i - num_active + 1
-                            rot_data.append({"Point": f"EXTRA-{extra_num}. GENERAL RELIEVER", "Staff Name": guard['name']})
+                # Check previous 5 columns in the sheet
+                for lookback in range(1, 6):
+                    prev_col_idx = date_col_idx - lookback
+                    if prev_col_idx > 1: # Ensure we don't go before name column
+                         for i in range(len(df_raw)):
+                            if i > 85: break
+                            p_name = str(df_raw.iloc[i, 1]).strip().upper()
+                            p_point = str(df_raw.iloc[i, prev_col_idx]).strip().upper()
+                            
+                            # Standardize Point Names (Remove Extra Spaces)
+                            # This helps match "1. MAIN GATE" with "1.MAIN GATE "
+                            if p_name in staff_blocked_points:
+                                staff_blocked_points[p_name].append(p_point)
 
-                # --- 5. FILL VACANCIES ---
+                # --- ASSIGNMENT ALGORITHM ---
+                rot_data = []
+                # Make a copy of active points to consume
+                available_today = list(active_duty_points)
+                
+                # We sort active points to prioritize filling them in order (1 to 12)
+                # But we assign based on who is FREE to take it
+                
+                final_assignments = {}
+                
+                # 1. Try to assign a point that the guard HAS NOT done in last 5 days
+                for guard in guards_pool:
+                    assigned = False
+                    blocked = staff_blocked_points[guard['name']]
+                    
+                    # Look for the first available point NOT in blocked list
+                    for point in available_today:
+                        # Simple substring check (e.g. "MAIN GATE" in "1. MAIN GATE-1")
+                        is_blocked = any(b in point or point in b for b in blocked if len(b) > 3)
+                        
+                        if not is_blocked:
+                            final_assignments[guard['name']] = point
+                            available_today.remove(point)
+                            assigned = True
+                            break
+                    
+                    # 2. Fallback: If all points are blocked (Rare), take first available
+                    if not assigned and available_today:
+                        point = available_today.pop(0)
+                        final_assignments[guard['name']] = point
+
+                # 3. Create Display Data
+                for guard_name, point in final_assignments.items():
+                    rot_data.append({"Point": point, "Staff Name": guard_name})
+                
+                # 4. Handle Surplus Staff (If any left over)
+                assigned_names = final_assignments.keys()
+                extra_count = 1
+                for guard in guards_pool:
+                    if guard['name'] not in assigned_names:
+                        rot_data.append({"Point": f"EXTRA-{extra_count}. GENERAL RELIEVER", "Staff Name": guard['name']})
+                        extra_count += 1
+
+                # 5. Fill Vacancies
                 for vac_point in points_forced_vacant:
                     rot_data.append({"Point": vac_point, "Staff Name": "VACANT"})
 
-                # --- 6. SORT & DISPLAY ---
                 point_order = {p: i for i, p in enumerate(current_duty_points)}
                 rot_data.sort(key=lambda x: point_order.get(x["Point"], 100))
 
