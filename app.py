@@ -54,7 +54,6 @@ def save_to_database(new_data):
         history_df = pd.read_csv(CSV_FILE)
         if "Role" not in history_df.columns: history_df["Role"] = "GUARD"
         
-        # Remove existing entries for this shift (Overwrite logic)
         date_str = new_data[0]["Date"]
         shift_str = new_data[0]["Shift"]
         history_df = history_df[~((history_df["Date"] == date_str) & (history_df["Shift"] == shift_str))]
@@ -94,9 +93,7 @@ def get_role_summary(date_str, shift_str):
 
     sups = shift_df[shift_df["Role"] == "SUPERVISOR"]["Staff Name"].tolist()
     
-    # Reception: Include regular + Reliever
     recep = shift_df[shift_df["Role"] == "RECEPTION"]["Staff Name"].tolist()
-    # Check for Reliever in Guard Role
     recep_reliever = shift_df[shift_df["Point"] == "RECEPTION RELIEVER"]["Staff Name"].tolist()
     final_recep = recep + recep_reliever
     
@@ -115,7 +112,13 @@ if check_password():
         [data-testid="stSidebar"] { background-color: #0f172a !important; }
         [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
         .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; }
+        
+        /* SHIFT BANNER CSS - Fixed Colors */
+        .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
+        .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
+        .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
+        
         .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
         .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; }
@@ -220,7 +223,6 @@ if check_password():
                         wellness = guards_pool.pop(week_num % len(guards_pool))['name']
 
                     final_recep_team = [r['name'] for r in regular_recep_present]
-                    # Reception Reliever Logic (Added to Guard Pool for editing)
                     reception_reliever_name = None
                     if selected_date.weekday() == 5 and guards_pool:
                         week_num = selected_date.isocalendar()[1]
@@ -265,7 +267,6 @@ if check_password():
                         rot_data.append({"Point": point, "Staff Name": name})
                         save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": name, "Point": point, "Role": "GUARD"})
                     
-                    # Add Reception Reliever as GUARD
                     if reception_reliever_name:
                         rot_data.append({"Point": "RECEPTION RELIEVER", "Staff Name": reception_reliever_name})
                         save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": reception_reliever_name, "Point": "RECEPTION RELIEVER", "Role": "GUARD"})
@@ -314,13 +315,21 @@ if check_password():
                     ol_names = ", ".join(on_leave) if on_leave else "NONE"
 
         # --- RENDER UI ---
+        
+        # 1. SHIFT BANNER (Date & Shift)
         st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
         
+        # 2. STATS CARDS
         st.markdown(f"""<div class="stat-row">
             <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
             <div class="stat-card"><small>RECEPTION</small><br><b>{recep_text}</b></div>
             <div class="stat-card"><small>WELLNESS</small><br><b>{wellness_text}</b></div>
         </div>""", unsafe_allow_html=True)
+
+        # 3. FIX: SERIAL NUMBERS (1, 2, 3...)
+        # Reset Index before display so it starts from 1
+        df_display = df_display.reset_index(drop=True)
+        df_display.index += 1
 
         if secret_edit:
             st.warning("⚠️ EDIT MODE ENABLED - Changes are saved permanently!")
@@ -332,17 +341,14 @@ if check_password():
                 df_display, 
                 column_config={
                     "Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names),
-                    "Point": st.column_config.Column(disabled=True) # LOCK POINT NAME
+                    "Point": st.column_config.Column(disabled=True)
                 }, 
                 use_container_width=True,
-                key="data_editor",
-                hide_index=True
+                key="data_editor"
             )
             
             if st.button("💾 SAVE CHANGES TO DATABASE", type="primary"):
-                # BULK SAVE STRATEGY (Deleting old guards and inserting new list)
                 current_db = pd.read_csv(CSV_FILE)
-                # Keep everything EXCEPT Guard roles for this shift
                 mask_keep = ~((current_db["Date"] == date_str_key) & 
                               (current_db["Shift"] == target_shift) & 
                               (current_db["Role"] == "GUARD"))
@@ -360,7 +366,7 @@ if check_password():
                 
                 final_db = pd.concat([new_db, pd.DataFrame(new_rows)], ignore_index=True)
                 final_db.to_csv(CSV_FILE, index=False)
-                st.success("Changes Saved Permanently! Rotation updated.")
+                st.success("Changes Saved Permanently!")
                 st.rerun()
         else:
             st.table(df_display)
