@@ -92,11 +92,9 @@ def get_role_summary(date_str, shift_str):
     if shift_df.empty: return "N/A", "N/A", "N/A"
 
     sups = shift_df[shift_df["Role"] == "SUPERVISOR"]["Staff Name"].tolist()
-    
     recep = shift_df[shift_df["Role"] == "RECEPTION"]["Staff Name"].tolist()
     recep_reliever = shift_df[shift_df["Point"] == "RECEPTION RELIEVER"]["Staff Name"].tolist()
     final_recep = recep + recep_reliever
-    
     well = shift_df[shift_df["Role"] == "WELLNESS"]["Staff Name"].tolist()
     
     return ", ".join(sups) if sups else "N/A", \
@@ -112,13 +110,10 @@ if check_password():
         [data-testid="stSidebar"] { background-color: #0f172a !important; }
         [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
         .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        
-        /* SHIFT BANNER CSS - Fixed Colors */
         .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
         .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
         .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
-        
         .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
         .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; }
@@ -135,6 +130,10 @@ if check_password():
     
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
+    
+    # --- NEW: SYNC BUTTON ---
+    force_sync = st.sidebar.button("🔄 SYNC WITH SHEET", help="Click if you updated Google Sheet (Leave/WO)")
+    
     st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
@@ -156,7 +155,9 @@ if check_password():
         
         has_guards = not shift_data[shift_data["Role"] == "GUARD"].empty
         has_details = not shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])].empty
-        should_calculate = not has_guards or (has_guards and not has_details)
+        
+        # LOGIC UPDATE: Calculate if Data Missing OR "Sync Button" Clicked
+        should_calculate = (not has_guards) or (has_guards and not has_details) or force_sync
 
         if not should_calculate:
             # --- DISPLAY FROM DB ---
@@ -180,7 +181,10 @@ if check_password():
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            # --- CALCULATE NEW ---
+            # --- CALCULATE NEW (SYNC) ---
+            if force_sync:
+                st.info("🔄 Syncing with Google Sheet... (Overwriting Database)")
+            
             with st.spinner("Fetching Google Sheet & Calculating..."):
                 df_raw = pd.read_csv(url, header=None)
                 day_str = str(selected_date.day)
@@ -315,19 +319,14 @@ if check_password():
                     ol_names = ", ".join(on_leave) if on_leave else "NONE"
 
         # --- RENDER UI ---
-        
-        # 1. SHIFT BANNER (Date & Shift)
         st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
         
-        # 2. STATS CARDS
         st.markdown(f"""<div class="stat-row">
             <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
             <div class="stat-card"><small>RECEPTION</small><br><b>{recep_text}</b></div>
             <div class="stat-card"><small>WELLNESS</small><br><b>{wellness_text}</b></div>
         </div>""", unsafe_allow_html=True)
 
-        # 3. FIX: SERIAL NUMBERS (1, 2, 3...)
-        # Reset Index before display so it starts from 1
         df_display = df_display.reset_index(drop=True)
         df_display.index += 1
 
