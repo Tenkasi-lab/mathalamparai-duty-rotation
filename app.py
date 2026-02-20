@@ -7,8 +7,8 @@ import os
 
 # --- 1. CONFIGURATION ---
 CSV_FILE = "duty_database.csv"
-sheet_id = "1v95g8IVPITIF4-mZghIvh1wyr5YUxHGmgK3jyWhtuEQ"
-sheet_name = "FEBRUARY-2026" 
+sheet_id = "1-adQfc6NIVLpy50L9GpnH75IiX6IMJ-UwjYsx88rmFk" # Puthiya Sheet ID Update Cheythu
+sheet_name = "FEBRUARY-2026" # Sheet tab name maattam undenkil ivide maattuka
 url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"
 
 # --- 2. PASSWORD LOGIC ---
@@ -131,7 +131,6 @@ if check_password():
     selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
     
-    # --- NEW: SYNC BUTTON ---
     force_sync = st.sidebar.button("🔄 SYNC WITH SHEET", help="Click if you updated Google Sheet (Leave/WO)")
     
     st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
@@ -141,7 +140,6 @@ if check_password():
     current_time = datetime.now(ist).strftime("%I:%M %p")
     st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
-    # --- POOLS ---
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
@@ -156,11 +154,9 @@ if check_password():
         has_guards = not shift_data[shift_data["Role"] == "GUARD"].empty
         has_details = not shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])].empty
         
-        # LOGIC UPDATE: Calculate if Data Missing OR "Sync Button" Clicked
         should_calculate = (not has_guards) or (has_guards and not has_details) or force_sync
 
         if not should_calculate:
-            # --- DISPLAY FROM DB ---
             if not secret_edit: st.success("✅ LOADED FROM DATABASE")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
@@ -181,7 +177,6 @@ if check_password():
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            # --- CALCULATE NEW (SYNC) ---
             if force_sync:
                 st.info("🔄 Syncing with Google Sheet... (Overwriting Database)")
             
@@ -263,7 +258,6 @@ if check_password():
                         if not assigned and available_today:
                             final_assignments[guard['name']] = available_today.pop(0)
 
-                    # --- SAVE DATA ---
                     rot_data = []
                     save_list = []
                     
@@ -318,7 +312,6 @@ if check_password():
                     wo_names = ", ".join(week_offs) if week_offs else "NONE"
                     ol_names = ", ".join(on_leave) if on_leave else "NONE"
 
-        # --- RENDER UI ---
         st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
         
         st.markdown(f"""<div class="stat-row">
