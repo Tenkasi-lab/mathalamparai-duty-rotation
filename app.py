@@ -195,7 +195,13 @@ if check_password():
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            if force_sync:
+            # --- SMART SYNC LOGIC ---
+            existing_guard_assignments = {}
+            if force_sync and not shift_data.empty:
+                st.info(f"🔄 Smart Syncing with Google Sheet... (Preserving your Edits)")
+                for _, r in shift_data[shift_data["Role"] == "GUARD"].iterrows():
+                    existing_guard_assignments[r["Staff Name"]] = r["Point"]
+            elif force_sync:
                 st.info(f"🔄 Syncing with Google Sheet ({dynamic_sheet_name})...")
             
             with st.spinner("Fetching Google Sheet & Calculating..."):
@@ -259,8 +265,23 @@ if check_password():
                         shift_amt = day_of_year % len(available_today)
                         available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
+                    # --- SMART MERGE LOGIC START ---
                     final_assignments = {}
+                    unassigned_guards = []
+                    
+                    # Pass 1: Keep Edited / Existing Assignments
                     for guard in guards_pool:
+                        g_name = guard['name']
+                        if g_name in existing_guard_assignments:
+                            pt = existing_guard_assignments[g_name]
+                            final_assignments[g_name] = pt
+                            if pt in available_today:
+                                available_today.remove(pt)
+                        else:
+                            unassigned_guards.append(guard)
+
+                    # Pass 2: Assign Points to New Guards (or guards whose edits weren't found)
+                    for guard in unassigned_guards:
                         history = get_blocked_points(guard['name'], date_str_key)
                         assigned = False
                         for point in available_today:
@@ -275,6 +296,7 @@ if check_password():
                                 break
                         if not assigned and available_today:
                             final_assignments[guard['name']] = available_today.pop(0)
+                    # --- SMART MERGE LOGIC END ---
 
                     rot_data = []
                     save_list = []
@@ -299,8 +321,10 @@ if check_password():
                             extra_c += 1
 
                     for vac in points_forced_vacant:
-                        rot_data.append({"Point": vac, "Staff Name": "VACANT"})
-                        save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": vac, "Role": "GUARD"})
+                        # Add VACANT only if that point wasn't manually assigned to someone
+                        if vac not in final_assignments.values():
+                            rot_data.append({"Point": vac, "Staff Name": "VACANT"})
+                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": vac, "Role": "GUARD"})
                     
                     if target_shift == "A Shift":
                         gen_start = 13
@@ -373,7 +397,6 @@ if check_password():
                     dup_names = ", ".join(set(duplicates))
                     st.error(f"⚠️ பிழை: '{dup_names}' இரண்டு இடங்களில் உள்ளது! ஒருவருக்கு சரியாக மாற்றிவிட்டு சேவ் செய்யவும்.")
                 else:
-                    # No duplicates found, proceed to save
                     current_db = pd.read_csv(CSV_FILE)
                     mask_keep = ~((current_db["Date"] == date_str_key) & 
                                   (current_db["Shift"] == target_shift) & 
