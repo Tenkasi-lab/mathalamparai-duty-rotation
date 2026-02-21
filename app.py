@@ -7,9 +7,7 @@ import os
 
 # --- 1. CONFIGURATION ---
 CSV_FILE = "duty_database.csv"
-sheet_id = "1-adQfc6NIVLpy50L9GpnH75IiX6IMJ-UwjYsx88rmFk" # Puthiya Sheet ID Update Cheythu
-sheet_name = "FEBRUARY-2026" # Sheet tab name maattam undenkil ivide maattuka
-url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"
+sheet_id = "1-adQfc6NIVLpy50L9GpnH75IiX6IMJ-UwjYsx88rmFk" 
 
 # --- 2. PASSWORD LOGIC ---
 if "password_correct" not in st.session_state:
@@ -128,9 +126,26 @@ if check_password():
         st.rerun()
     st.sidebar.divider()
     
-    selected_date = st.sidebar.date_input("SELECT DATE", datetime.now())
-    target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
+    # --- DATE LOCK LOGIC ---
+    ALLOWED_START_DATE = datetime(2026, 1, 1).date()
+    ALLOWED_END_DATE = datetime(2026, 2, 28).date()
     
+    today_date = datetime.now().date()
+    if today_date < ALLOWED_START_DATE:
+        default_date = ALLOWED_START_DATE
+    elif today_date > ALLOWED_END_DATE:
+        default_date = ALLOWED_END_DATE
+    else:
+        default_date = today_date
+
+    selected_date = st.sidebar.date_input(
+        "SELECT DATE", 
+        value=default_date,
+        min_value=ALLOWED_START_DATE,
+        max_value=ALLOWED_END_DATE
+    )
+    
+    target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
     force_sync = st.sidebar.button("🔄 SYNC WITH SHEET", help="Click if you updated Google Sheet (Leave/WO)")
     
     st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
@@ -144,6 +159,9 @@ if check_password():
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
+
+    dynamic_sheet_name = selected_date.strftime("%B-%Y").upper()
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(dynamic_sheet_name)}"
 
     try:
         db_df = load_database()
@@ -178,7 +196,7 @@ if check_password():
             
         else:
             if force_sync:
-                st.info("🔄 Syncing with Google Sheet... (Overwriting Database)")
+                st.info(f"🔄 Syncing with Google Sheet ({dynamic_sheet_name})...")
             
             with st.spinner("Fetching Google Sheet & Calculating..."):
                 df_raw = pd.read_csv(url, header=None)
@@ -340,26 +358,42 @@ if check_password():
             )
             
             if st.button("💾 SAVE CHANGES TO DATABASE", type="primary"):
-                current_db = pd.read_csv(CSV_FILE)
-                mask_keep = ~((current_db["Date"] == date_str_key) & 
-                              (current_db["Shift"] == target_shift) & 
-                              (current_db["Role"] == "GUARD"))
-                new_db = current_db[mask_keep].copy()
+                # --- VALIDATION CHECK: Duplicate Names ---
+                staff_list = edited_df["Staff Name"].tolist()
+                duplicates = []
+                seen = set()
                 
-                new_rows = []
-                for _, row in edited_df.iterrows():
-                    new_rows.append({
-                        "Date": date_str_key, 
-                        "Shift": target_shift, 
-                        "Staff Name": row["Staff Name"], 
-                        "Point": row["Point"], 
-                        "Role": "GUARD"
-                    })
+                for name in staff_list:
+                    if name != "VACANT":  # "VACANT" can be repeated
+                        if name in seen:
+                            duplicates.append(name)
+                        seen.add(name)
                 
-                final_db = pd.concat([new_db, pd.DataFrame(new_rows)], ignore_index=True)
-                final_db.to_csv(CSV_FILE, index=False)
-                st.success("Changes Saved Permanently!")
-                st.rerun()
+                if duplicates:
+                    dup_names = ", ".join(set(duplicates))
+                    st.error(f"⚠️ பிழை: '{dup_names}' இரண்டு இடங்களில் உள்ளது! ஒருவருக்கு சரியாக மாற்றிவிட்டு சேவ் செய்யவும்.")
+                else:
+                    # No duplicates found, proceed to save
+                    current_db = pd.read_csv(CSV_FILE)
+                    mask_keep = ~((current_db["Date"] == date_str_key) & 
+                                  (current_db["Shift"] == target_shift) & 
+                                  (current_db["Role"] == "GUARD"))
+                    new_db = current_db[mask_keep].copy()
+                    
+                    new_rows = []
+                    for _, row in edited_df.iterrows():
+                        new_rows.append({
+                            "Date": date_str_key, 
+                            "Shift": target_shift, 
+                            "Staff Name": row["Staff Name"], 
+                            "Point": row["Point"], 
+                            "Role": "GUARD"
+                        })
+                    
+                    final_db = pd.concat([new_db, pd.DataFrame(new_rows)], ignore_index=True)
+                    final_db.to_csv(CSV_FILE, index=False)
+                    st.success("Changes Saved Permanently!")
+                    st.rerun()
         else:
             st.table(df_display)
         
@@ -369,4 +403,7 @@ if check_password():
         </div>""", unsafe_allow_html=True)
 
     except Exception as e:
-        st.error(f"System Error: {e}")
+        if "HTTP Error 400: Bad Request" in str(e):
+            st.error(f"⚠️ Error: Google Sheet-ல் '{dynamic_sheet_name}' என்ற பெயரில் Tab இல்லை! Sheet-ஐ சரிபார்க்கவும்.")
+        else:
+            st.error(f"System Error: {e}")
