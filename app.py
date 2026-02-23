@@ -195,7 +195,6 @@ if check_password():
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            # --- SMART SYNC LOGIC ---
             existing_guard_assignments = {}
             if force_sync and not shift_data.empty:
                 st.info(f"🔄 Smart Syncing with Google Sheet... (Preserving your Edits)")
@@ -265,22 +264,24 @@ if check_password():
                         shift_amt = day_of_year % len(available_today)
                         available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
-                    # --- SMART MERGE LOGIC START ---
+                    # --- SMART MERGE LOGIC START (FIXED) ---
                     final_assignments = {}
                     unassigned_guards = []
                     
-                    # Pass 1: Keep Edited / Existing Assignments
+                    # Pass 1: Keep Edited / Existing Assignments ONLY IF they are NOT supposed to be vacant today
                     for guard in guards_pool:
                         g_name = guard['name']
                         if g_name in existing_guard_assignments:
                             pt = existing_guard_assignments[g_name]
-                            final_assignments[g_name] = pt
                             if pt in available_today:
+                                final_assignments[g_name] = pt
                                 available_today.remove(pt)
+                            else:
+                                unassigned_guards.append(guard)
                         else:
                             unassigned_guards.append(guard)
 
-                    # Pass 2: Assign Points to New Guards (or guards whose edits weren't found)
+                    # Pass 2: Assign Points to New Guards
                     for guard in unassigned_guards:
                         history = get_blocked_points(guard['name'], date_str_key)
                         assigned = False
@@ -320,11 +321,13 @@ if check_password():
                             save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": guard['name'], "Point": p_name, "Role": "GUARD"})
                             extra_c += 1
 
-                    for vac in points_forced_vacant:
-                        # Add VACANT only if that point wasn't manually assigned to someone
-                        if vac not in final_assignments.values():
-                            rot_data.append({"Point": vac, "Staff Name": "VACANT"})
-                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": vac, "Role": "GUARD"})
+                    # --- FIXED: MISSING POINTS RECOVERY ---
+                    # 12 பாயிண்ட்களில் எதெல்லாம் assign ஆகவில்லையோ, அவை அனைத்தையும் "VACANT" என்று கட்டாயம் சேர்க்கும்.
+                    assigned_point_names = final_assignments.values()
+                    for pt in current_duty_points:
+                        if pt not in assigned_point_names:
+                            rot_data.append({"Point": pt, "Staff Name": "VACANT"})
+                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": pt, "Role": "GUARD"})
                     
                     if target_shift == "A Shift":
                         gen_start = 13
