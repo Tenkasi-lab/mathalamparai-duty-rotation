@@ -99,6 +99,16 @@ def get_role_summary(date_str, shift_str):
            ", ".join(final_recep) if final_recep else "N/A", \
            ", ".join(well) if well else "N/A"
 
+# --- NEW STRICT CHECK FUNCTION ---
+def is_blocked(point, history):
+    # துல்லியமாக செக் செய்ய, எண்களை நீக்கிவிட்டு பெயர்களை ஒப்பிடுதல்
+    p_clean = point.split('. ', 1)[-1] if '. ' in point else point
+    for h in history:
+        h_clean = h.split('. ', 1)[-1] if '. ' in h else h
+        if p_clean == h_clean:
+            return True
+    return False
+
 if check_password():
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
     
@@ -139,15 +149,9 @@ if check_password():
     else:
         default_date = today_date
 
-    selected_date = st.sidebar.date_input(
-        "SELECT DATE", 
-        value=default_date,
-        min_value=ALLOWED_START_DATE,
-        max_value=ALLOWED_END_DATE
-    )
-    
+    selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
-    force_sync = st.sidebar.button("🔄 SYNC WITH SHEET", help="Click if you updated Google Sheet (Leave/WO)")
+    force_sync = st.sidebar.button("🔄 SYNC WITH SHEET", help="Click if you updated Google Sheet")
     
     st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
@@ -169,10 +173,8 @@ if check_password():
         date_str_key = selected_date.strftime("%Y-%m-%d")
         
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
-        
         has_guards = not shift_data[shift_data["Role"] == "GUARD"].empty
         has_details = not shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])].empty
-        
         should_calculate = (not has_guards) or (has_guards and not has_details) or force_sync
 
         if not should_calculate:
@@ -227,12 +229,9 @@ if check_password():
                         if name and name not in ["NAME", "NAN"]:
                             if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
                             elif status in ["L", "LEAVE"]: on_leave.append(name)
-                            # --- FIXED: GENERAL SHIFT SUPERVISOR LOGIC ---
                             elif status in ["G", "GEN", "GENERAL"]:
-                                if any(s in name for s in supervisors_pool): 
-                                    sups.append(f"{name} (GEN)") # Supervisor on General Shift
-                                else: 
-                                    general_staff.append(name)
+                                if any(s in name for s in supervisors_pool): sups.append(f"{name} (GEN)") 
+                                else: general_staff.append(name)
                             elif status == shift_code: 
                                 if any(s in name for s in supervisors_pool): sups.append(name)
                                 else: staff_on_duty.append({'id': i, 'name': name})
@@ -267,11 +266,16 @@ if check_password():
                         shift_amt = day_of_year % len(available_today)
                         available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
+                    # --- STRICT ENGINE START ---
                     final_assignments = {}
                     unassigned_guards = []
+                    history_map = {}
                     
+                    # 1. முந்தைய எடிட் செய்யப்பட்டவைகளை அப்படியே வைப்பது
                     for guard in guards_pool:
                         g_name = guard['name']
+                        history_map[g_name] = get_blocked_points(g_name, date_str_key)
+                        
                         if g_name in existing_guard_assignments:
                             pt = existing_guard_assignments[g_name]
                             if pt in available_today:
@@ -282,34 +286,48 @@ if check_password():
                         else:
                             unassigned_guards.append(guard)
 
+                    # 2. PRIORITY SORTING: (நீங்கள் சொன்ன லாஜிக்)
+                    # யாருக்கு நிறைய பாயிண்ட் பிளாக் ஆகியிருக்கோ, அவர்களுக்கு முன்னுரிமை.
+                    # லீவ் முடித்து வருபவர்களுக்கு பிளாக் இருக்காது, அதனால் அவர்கள் கடைசியில் வருவார்கள்.
+                    unassigned_guards.sort(key=lambda g: sum(1 for p in available_today if is_blocked(p, history_map[g['name']])), reverse=True)
+
+                    # 3. ASSIGNMENT & DEEP SWAP
                     for guard in unassigned_guards:
                         g_name = guard['name']
-                        history = get_blocked_points(g_name, date_str_key)
+                        history = history_map[g_name]
                         
-                        valid_points = [p for p in available_today if p not in history]
+                        valid_points = [p for p in available_today if not is_blocked(p, history)]
                         
                         if valid_points:
                             chosen_pt = valid_points[0]
                             final_assignments[g_name] = chosen_pt
                             available_today.remove(chosen_pt)
                         else:
+                            # சிக்கல்: மீதமுள்ள பாயிண்ட்டை இவர் ஏற்கனவே பார்த்துள்ளார். 
+                            # தீர்வு: முந்தைய நபர்களிடம் செக் செய்து Swap செய்தல் (Deep Swap)
                             swapped = False
                             if available_today:
-                                for avail_pt in list(available_today):
-                                    for assigned_g, assigned_pt in list(final_assignments.items()):
-                                        assigned_g_history = get_blocked_points(assigned_g, date_str_key)
-                                        if avail_pt not in assigned_g_history and assigned_pt not in history:
-                                            final_assignments[assigned_g] = avail_pt
+                                bad_pt = available_today[0]
+                                for assigned_g, assigned_pt in list(final_assignments.items()):
+                                    assigned_hist = history_map[assigned_g]
+                                    # 1. பழைய நபரால் இந்த புதிய பாயிண்ட்டை எடுக்க முடியுமா?
+                                    if not is_blocked(bad_pt, assigned_hist):
+                                        # 2. சிக்கலில் மாட்டியவரால் அந்த பழைய நபரின் பாயிண்ட்டை எடுக்க முடியுமா?
+                                        if not is_blocked(assigned_pt, history):
+                                            # SUCCESSFUL SWAP!
+                                            final_assignments[assigned_g] = bad_pt
                                             final_assignments[g_name] = assigned_pt
-                                            available_today.remove(avail_pt)
+                                            available_today.remove(bad_pt)
                                             swapped = True
                                             break
                                     if swapped:
                                         break
                             
+                            # Extremely Rare Fallback (மேத்ஸ் படி வழியே இல்லை என்றால் மட்டும்)
                             if not swapped and available_today:
                                 chosen_pt = available_today.pop(0)
                                 final_assignments[g_name] = chosen_pt
+                    # --- STRICT ENGINE END ---
 
                     rot_data = []
                     save_list = []
