@@ -126,10 +126,13 @@ if check_password():
         st.rerun()
     st.sidebar.divider()
     
-    ALLOWED_START_DATE = datetime(2026, 1, 1).date()
-    ALLOWED_END_DATE = datetime(2026, 2, 28).date()
-    
+    # --- FIXED: DATE LOCK LOGIC FOR ENTIRE YEAR ---
     today_date = datetime.now().date()
+    current_year = today_date.year
+    
+    ALLOWED_START_DATE = datetime(current_year, 1, 1).date()
+    ALLOWED_END_DATE = datetime(current_year, 12, 31).date() # Open till end of the year
+    
     if today_date < ALLOWED_START_DATE:
         default_date = ALLOWED_START_DATE
     elif today_date > ALLOWED_END_DATE:
@@ -263,11 +266,9 @@ if check_password():
                         shift_amt = day_of_year % len(available_today)
                         available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
-                    # --- FIXED: ADVANCED SMART MERGE & AUTO-SWAP LOGIC ---
                     final_assignments = {}
                     unassigned_guards = []
                     
-                    # Step 1: Keep Edited/Existing Duties (if not blocked today)
                     for guard in guards_pool:
                         g_name = guard['name']
                         if g_name in existing_guard_assignments:
@@ -280,12 +281,10 @@ if check_password():
                         else:
                             unassigned_guards.append(guard)
 
-                    # Step 2: Assign Remaining points using EXACT MATCH
                     for guard in unassigned_guards:
                         g_name = guard['name']
                         history = get_blocked_points(g_name, date_str_key)
                         
-                        # Find points NOT in history (EXACT STRING MATCH to prevent false blocks)
                         valid_points = [p for p in available_today if p not in history]
                         
                         if valid_points:
@@ -293,14 +292,11 @@ if check_password():
                             final_assignments[g_name] = chosen_pt
                             available_today.remove(chosen_pt)
                         else:
-                            # 🚨 END-OF-LIST CONFLICT (All remaining points are blocked for this guard!)
-                            # தீர்வு: AUTO-SWAP (ஏற்கனவே டியூட்டி போட்ட ஒருவருடன் இந்த பாயிண்ட்டை மாற்றுவது)
                             swapped = False
                             if available_today:
                                 for avail_pt in list(available_today):
                                     for assigned_g, assigned_pt in list(final_assignments.items()):
                                         assigned_g_history = get_blocked_points(assigned_g, date_str_key)
-                                        # Check if we can safely swap their duties!
                                         if avail_pt not in assigned_g_history and assigned_pt not in history:
                                             final_assignments[assigned_g] = avail_pt
                                             final_assignments[g_name] = assigned_pt
@@ -310,12 +306,9 @@ if check_password():
                                     if swapped:
                                         break
                             
-                            # Auto-Swap-ம் பெயிலாகி வேறு வழியே இல்லை என்றால் மட்டும் Force assign செய்யும்
                             if not swapped and available_today:
                                 chosen_pt = available_today.pop(0)
                                 final_assignments[g_name] = chosen_pt
-
-                    # --- END OF ASSIGNMENT LOGIC ---
 
                     rot_data = []
                     save_list = []
