@@ -12,6 +12,8 @@ sheet_id = "1-adQfc6NIVLpy50L9GpnH75IiX6IMJ-UwjYsx88rmFk"
 # --- 2. PASSWORD LOGIC ---
 if "password_correct" not in st.session_state:
     st.session_state["password_correct"] = False
+if "screenshot_mode" not in st.session_state:
+    st.session_state["screenshot_mode"] = False
 
 def check_password():
     def password_entered():
@@ -99,9 +101,7 @@ def get_role_summary(date_str, shift_str):
            ", ".join(final_recep) if final_recep else "N/A", \
            ", ".join(well) if well else "N/A"
 
-# --- NEW STRICT CHECK FUNCTION ---
 def is_blocked(point, history):
-    # துல்லியமாக செக் செய்ய, எண்களை நீக்கிவிட்டு பெயர்களை ஒப்பிடுதல்
     p_clean = point.split('. ', 1)[-1] if '. ' in point else point
     for h in history:
         h_clean = h.split('. ', 1)[-1] if '. ' in h else h
@@ -112,23 +112,55 @@ def is_blocked(point, history):
 if check_password():
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
     
-    st.markdown("""
-        <style>
-        .stApp { background-color: #f8fafc; }
-        [data-testid="stSidebar"] { background-color: #0f172a !important; }
-        [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
-        .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
-        .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
-        .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
-        .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        </style>
-    """, unsafe_allow_html=True)
+    # --- SCREENSHOT MODE VIEW ---
+    if st.session_state["screenshot_mode"]:
+        st.markdown("""
+            <style>
+            [data-testid="stSidebar"] {display: none;}
+            header {display: none;}
+            .stApp {background-color: #f8fafc;}
+            .roster-card { background: white; border: 2px solid #0f172a; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: hidden;}
+            .roster-header { background: #0f172a; color: white; text-align: center; padding: 15px; font-weight: 800; font-size: 18px;}
+            .roster-body { padding: 20px;}
+            .info-text { font-size: 15px; line-height: 1.6; border-bottom: 2px dashed #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;}
+            .roster-table { width: 100%; border-collapse: collapse; font-size: 14px;}
+            .roster-table th, .roster-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left;}
+            .roster-table th { background: #f1f5f9; font-weight: bold; color: #334155;}
+            .vacant { color: #dc2626; font-weight: bold; }
+            .extra { background-color: #f8fafc; font-style: italic; }
+            .footer-card { margin-top: 15px; font-size: 13px; font-weight: bold;}
+            </style>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("❌ EXIT SCREENSHOT MODE", use_container_width=True):
+                st.session_state["screenshot_mode"] = False
+                st.rerun()
+                
+            # Render nothing until db variables exist, but since it's a re-run they should be in session state 
+            # OR we just re-run the normal flow secretly to get variables, then hide normal UI.
+            # To be safe, we calculate everything in the main block and use CSS to show only the card.
+
+    # --- NORMAL UI STYLES ---
+    if not st.session_state["screenshot_mode"]:
+        st.markdown("""
+            <style>
+            .stApp { background-color: #f8fafc; }
+            [data-testid="stSidebar"] { background-color: #0f172a !important; }
+            [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
+            .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+            .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
+            .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
+            .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
+            .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
+            .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            </style>
+        """, unsafe_allow_html=True)
 
     st.sidebar.markdown("<h2 style='text-align: center; color: white;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
     if st.sidebar.button("🔒 EXIT SYSTEM", use_container_width=True):
@@ -158,7 +190,9 @@ if check_password():
     
     ist = pytz.timezone('Asia/Kolkata')
     current_time = datetime.now(ist).strftime("%I:%M %p")
-    st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
+    
+    if not st.session_state["screenshot_mode"]:
+        st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
@@ -178,7 +212,8 @@ if check_password():
         should_calculate = (not has_guards) or (has_guards and not has_details) or force_sync
 
         if not should_calculate:
-            if not secret_edit: st.success("✅ LOADED FROM DATABASE")
+            if not secret_edit and not st.session_state["screenshot_mode"]: 
+                st.success("✅ LOADED FROM DATABASE")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
             
@@ -200,11 +235,11 @@ if check_password():
         else:
             existing_guard_assignments = {}
             if force_sync and not shift_data.empty:
-                st.info(f"🔄 Smart Syncing with Google Sheet... (Preserving your Edits)")
+                if not st.session_state["screenshot_mode"]: st.info(f"🔄 Smart Syncing with Google Sheet...")
                 for _, r in shift_data[shift_data["Role"] == "GUARD"].iterrows():
                     existing_guard_assignments[r["Staff Name"]] = r["Point"]
             elif force_sync:
-                st.info(f"🔄 Syncing with Google Sheet ({dynamic_sheet_name})...")
+                if not st.session_state["screenshot_mode"]: st.info(f"🔄 Syncing with Google Sheet ({dynamic_sheet_name})...")
             
             with st.spinner("Fetching Google Sheet & Calculating..."):
                 df_raw = pd.read_csv(url, header=None)
@@ -266,12 +301,10 @@ if check_password():
                         shift_amt = day_of_year % len(available_today)
                         available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
-                    # --- STRICT ENGINE START ---
                     final_assignments = {}
                     unassigned_guards = []
                     history_map = {}
                     
-                    # 1. முந்தைய எடிட் செய்யப்பட்டவைகளை அப்படியே வைப்பது
                     for guard in guards_pool:
                         g_name = guard['name']
                         history_map[g_name] = get_blocked_points(g_name, date_str_key)
@@ -286,12 +319,8 @@ if check_password():
                         else:
                             unassigned_guards.append(guard)
 
-                    # 2. PRIORITY SORTING: (நீங்கள் சொன்ன லாஜிக்)
-                    # யாருக்கு நிறைய பாயிண்ட் பிளாக் ஆகியிருக்கோ, அவர்களுக்கு முன்னுரிமை.
-                    # லீவ் முடித்து வருபவர்களுக்கு பிளாக் இருக்காது, அதனால் அவர்கள் கடைசியில் வருவார்கள்.
                     unassigned_guards.sort(key=lambda g: sum(1 for p in available_today if is_blocked(p, history_map[g['name']])), reverse=True)
 
-                    # 3. ASSIGNMENT & DEEP SWAP
                     for guard in unassigned_guards:
                         g_name = guard['name']
                         history = history_map[g_name]
@@ -303,18 +332,13 @@ if check_password():
                             final_assignments[g_name] = chosen_pt
                             available_today.remove(chosen_pt)
                         else:
-                            # சிக்கல்: மீதமுள்ள பாயிண்ட்டை இவர் ஏற்கனவே பார்த்துள்ளார். 
-                            # தீர்வு: முந்தைய நபர்களிடம் செக் செய்து Swap செய்தல் (Deep Swap)
                             swapped = False
                             if available_today:
                                 bad_pt = available_today[0]
                                 for assigned_g, assigned_pt in list(final_assignments.items()):
                                     assigned_hist = history_map[assigned_g]
-                                    # 1. பழைய நபரால் இந்த புதிய பாயிண்ட்டை எடுக்க முடியுமா?
                                     if not is_blocked(bad_pt, assigned_hist):
-                                        # 2. சிக்கலில் மாட்டியவரால் அந்த பழைய நபரின் பாயிண்ட்டை எடுக்க முடியுமா?
                                         if not is_blocked(assigned_pt, history):
-                                            # SUCCESSFUL SWAP!
                                             final_assignments[assigned_g] = bad_pt
                                             final_assignments[g_name] = assigned_pt
                                             available_today.remove(bad_pt)
@@ -323,11 +347,9 @@ if check_password():
                                     if swapped:
                                         break
                             
-                            # Extremely Rare Fallback (மேத்ஸ் படி வழியே இல்லை என்றால் மட்டும்)
                             if not swapped and available_today:
                                 chosen_pt = available_today.pop(0)
                                 final_assignments[g_name] = chosen_pt
-                    # --- STRICT ENGINE END ---
 
                     rot_data = []
                     save_list = []
@@ -385,75 +407,118 @@ if check_password():
                     wo_names = ", ".join(week_offs) if week_offs else "NONE"
                     ol_names = ", ".join(on_leave) if on_leave else "NONE"
 
-        st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
-        
-        st.markdown(f"""<div class="stat-row">
-            <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
-            <div class="stat-card"><small>RECEPTION</small><br><b>{recep_text}</b></div>
-            <div class="stat-card"><small>WELLNESS</small><br><b>{wellness_text}</b></div>
-        </div>""", unsafe_allow_html=True)
+        # --- DISPLAY RENDER ---
+        if st.session_state["screenshot_mode"]:
+            # RENDER THE BEAUTIFUL CARD FOR SCREENSHOT
+            html_rows = ""
+            for _, row in df_display.iterrows():
+                name = row['Staff Name']
+                style_class = "vacant" if name == "VACANT" else ("extra" if "EXTRA" in row['Point'] else "")
+                html_rows += f"<tr><td>{row['Point']}</td><td class='{style_class}'>{name}</td></tr>"
 
-        df_display = df_display.reset_index(drop=True)
-        df_display.index += 1
-
-        if secret_edit:
-            st.warning("⚠️ EDIT MODE ENABLED - Changes are saved permanently!")
-            dropdown_names = sorted(df_display["Staff Name"].unique().tolist() + 
-                                  shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])]["Staff Name"].tolist() + 
-                                  ["VACANT"])
+            card_html = f"""
+            <div class="roster-card">
+                <div class="roster-header">
+                    🛡️ MATHALAMPARAI ROSTER <br>
+                    <span style="font-size: 15px; font-weight: normal;">{selected_date.strftime("%d %b %Y")} | {target_shift}</span>
+                </div>
+                <div class="roster-body">
+                    <div class="info-text">
+                        <b>👨‍💼 Supervisor:</b> {sups_text}<br>
+                        <b>👩‍💼 Reception:</b> {recep_text}<br>
+                        <b>⚕️ Wellness:</b> {wellness_text}
+                    </div>
+                    <table class="roster-table">
+                        <tr><th>📍 Duty Point</th><th>💂 Assigned Staff</th></tr>
+                        {html_rows}
+                    </table>
+                    <div class="footer-card">
+                        <span style="color:#dc2626;">🏖️ Week Off:</span> {wo_names}<br>
+                        <span style="color:#dc2626;">🏥 On Leave:</span> {ol_names}
+                    </div>
+                </div>
+            </div>
+            """
+            st.markdown(card_html, unsafe_allow_html=True)
             
-            edited_df = st.data_editor(
-                df_display, 
-                column_config={
-                    "Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names),
-                    "Point": st.column_config.Column(disabled=True)
-                }, 
-                use_container_width=True,
-                key="data_editor"
-            )
-            
-            if st.button("💾 SAVE CHANGES TO DATABASE", type="primary"):
-                staff_list = edited_df["Staff Name"].tolist()
-                duplicates = []
-                seen = set()
-                
-                for name in staff_list:
-                    if name != "VACANT":
-                        if name in seen:
-                            duplicates.append(name)
-                        seen.add(name)
-                
-                if duplicates:
-                    dup_names = ", ".join(set(duplicates))
-                    st.error(f"⚠️ பிழை: '{dup_names}' இரண்டு இடங்களில் உள்ளது! ஒருவருக்கு சரியாக மாற்றிவிட்டு சேவ் செய்யவும்.")
-                else:
-                    current_db = pd.read_csv(CSV_FILE)
-                    mask_keep = ~((current_db["Date"] == date_str_key) & 
-                                  (current_db["Shift"] == target_shift) & 
-                                  (current_db["Role"] == "GUARD"))
-                    new_db = current_db[mask_keep].copy()
-                    
-                    new_rows = []
-                    for _, row in edited_df.iterrows():
-                        new_rows.append({
-                            "Date": date_str_key, 
-                            "Shift": target_shift, 
-                            "Staff Name": row["Staff Name"], 
-                            "Point": row["Point"], 
-                            "Role": "GUARD"
-                        })
-                    
-                    final_db = pd.concat([new_db, pd.DataFrame(new_rows)], ignore_index=True)
-                    final_db.to_csv(CSV_FILE, index=False)
-                    st.success("Changes Saved Permanently!")
-                    st.rerun()
         else:
-            st.table(df_display)
-        
-        st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
-            <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
-            <span><b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span></span>
-        </div>""", unsafe_allow_html=True)
+            # NORMAL VIEW
+            st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+            
+            st.markdown(f"""<div class="stat-row">
+                <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
+                <div class="stat-card"><small>RECEPTION</small><br><b>{recep_text}</b></div>
+                <div class="stat-card"><small>WELLNESS</small><br><b>{wellness_text}</b></div>
+            </div>""", unsafe_allow_html=True)
+
+            df_display = df_display.reset_index(drop=True)
+            df_display.index += 1
+
+            if secret_edit:
+                st.warning("⚠️ EDIT MODE ENABLED - Changes are saved permanently!")
+                dropdown_names = sorted(df_display["Staff Name"].unique().tolist() + 
+                                      shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])]["Staff Name"].tolist() + 
+                                      ["VACANT"])
+                
+                edited_df = st.data_editor(
+                    df_display, 
+                    column_config={
+                        "Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names),
+                        "Point": st.column_config.Column(disabled=True)
+                    }, 
+                    use_container_width=True,
+                    key="data_editor"
+                )
+                
+                if st.button("💾 SAVE CHANGES TO DATABASE", type="primary"):
+                    staff_list = edited_df["Staff Name"].tolist()
+                    duplicates = []
+                    seen = set()
+                    
+                    for name in staff_list:
+                        if name != "VACANT":
+                            if name in seen:
+                                duplicates.append(name)
+                            seen.add(name)
+                    
+                    if duplicates:
+                        dup_names = ", ".join(set(duplicates))
+                        st.error(f"⚠️ பிழை: '{dup_names}' இரண்டு இடங்களில் உள்ளது! ஒருவருக்கு சரியாக மாற்றிவிட்டு சேவ் செய்யவும்.")
+                    else:
+                        current_db = pd.read_csv(CSV_FILE)
+                        mask_keep = ~((current_db["Date"] == date_str_key) & 
+                                      (current_db["Shift"] == target_shift) & 
+                                      (current_db["Role"] == "GUARD"))
+                        new_db = current_db[mask_keep].copy()
+                        
+                        new_rows = []
+                        for _, row in edited_df.iterrows():
+                            new_rows.append({
+                                "Date": date_str_key, 
+                                "Shift": target_shift, 
+                                "Staff Name": row["Staff Name"], 
+                                "Point": row["Point"], 
+                                "Role": "GUARD"
+                            })
+                        
+                        final_db = pd.concat([new_db, pd.DataFrame(new_rows)], ignore_index=True)
+                        final_db.to_csv(CSV_FILE, index=False)
+                        st.success("Changes Saved Permanently!")
+                        st.rerun()
+            else:
+                st.table(df_display)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("📸 OPEN SCREENSHOT MODE (WhatsApp View)", use_container_width=True, type="primary"):
+                        st.session_state["screenshot_mode"] = True
+                        st.rerun()
+            
+            st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
+                <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
+                <span><b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span></span>
+            </div>""", unsafe_allow_html=True)
 
     except Exception as e:
         if "HTTP Error 400: Bad Request" in str(e):
