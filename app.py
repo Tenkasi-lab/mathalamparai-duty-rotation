@@ -126,12 +126,11 @@ if check_password():
         st.rerun()
     st.sidebar.divider()
     
-    # --- FIXED: DATE LOCK LOGIC FOR ENTIRE YEAR ---
     today_date = datetime.now().date()
     current_year = today_date.year
     
     ALLOWED_START_DATE = datetime(current_year, 1, 1).date()
-    ALLOWED_END_DATE = datetime(current_year, 12, 31).date() # Open till end of the year
+    ALLOWED_END_DATE = datetime(current_year, 12, 31).date() 
     
     if today_date < ALLOWED_START_DATE:
         default_date = ALLOWED_START_DATE
@@ -218,7 +217,6 @@ if check_password():
                 if date_col_idx:
                     shift_code = target_shift[0]
                     staff_on_duty, sups, week_offs, on_leave = [], [], [], []
-                    general_supervisor = None
                     general_staff = []
 
                     for i in range(len(df_raw)):
@@ -229,9 +227,12 @@ if check_password():
                         if name and name not in ["NAME", "NAN"]:
                             if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
                             elif status in ["L", "LEAVE"]: on_leave.append(name)
+                            # --- FIXED: GENERAL SHIFT SUPERVISOR LOGIC ---
                             elif status in ["G", "GEN", "GENERAL"]:
-                                if any(s in name for s in supervisors_pool): general_supervisor = name
-                                else: general_staff.append(name)
+                                if any(s in name for s in supervisors_pool): 
+                                    sups.append(f"{name} (GEN)") # Supervisor on General Shift
+                                else: 
+                                    general_staff.append(name)
                             elif status == shift_code: 
                                 if any(s in name for s in supervisors_pool): sups.append(name)
                                 else: staff_on_duty.append({'id': i, 'name': name})
