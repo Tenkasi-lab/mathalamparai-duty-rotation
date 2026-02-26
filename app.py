@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 import urllib.parse
 import pytz
 import os
+import re
+import random
 
 # --- 1. CONFIGURATION ---
 CSV_FILE = "duty_database.csv"
@@ -66,20 +68,6 @@ def save_to_database(new_data):
     updated_df.to_csv(CSV_FILE, index=False)
     return updated_df
 
-def get_blocked_points(staff_name, current_date):
-    if not os.path.exists(CSV_FILE): return []
-    df = pd.read_csv(CSV_FILE)
-    if "Role" not in df.columns: return []
-    
-    df["DateObj"] = pd.to_datetime(df["Date"])
-    current_date_obj = pd.to_datetime(current_date)
-    
-    mask = (df["Staff Name"] == staff_name) & \
-           (df["DateObj"] < current_date_obj) & \
-           (df["DateObj"] >= (current_date_obj - timedelta(days=5)))
-    
-    return df.loc[mask, "Point"].tolist()
-
 def get_role_summary(date_str, shift_str):
     if not os.path.exists(CSV_FILE): return "N/A", "N/A", "N/A"
     
@@ -101,18 +89,49 @@ def get_role_summary(date_str, shift_str):
            ", ".join(final_recep) if final_recep else "N/A", \
            ", ".join(well) if well else "N/A"
 
-def is_blocked(point, history):
-    p_clean = point.split('. ', 1)[-1] if '. ' in point else point
-    for h in history:
-        h_clean = h.split('. ', 1)[-1] if '. ' in h else h
-        if p_clean == h_clean:
-            return True
-    return False
+# --- SUPER STRICT FULL-CYCLE LOGIC ---
+def clean_point_name(p):
+    # நம்பர்கள், புள்ளிகள் நீக்கி, வார்த்தையை மட்டும் ஒப்பிடும்
+    return re.sub(r'[^A-Z]', '', str(p).upper())
+
+def get_guard_history(staff_name, current_date):
+    # ஒரு கார்டின் முழுமையான ஹிஸ்டரியை எடுக்கும் (Full History)
+    if not os.path.exists(CSV_FILE): return {}
+    df = pd.read_csv(CSV_FILE)
+    if "Role" not in df.columns: return {}
+
+    df["DateObj"] = pd.to_datetime(df["Date"])
+    current_date_obj = pd.to_datetime(current_date)
+
+    past_duties = df[(df["Staff Name"] == staff_name) & 
+                     (df["Role"] == "GUARD") & 
+                     (df["DateObj"] < current_date_obj)].sort_values(by="DateObj", ascending=False)
+    
+    history = {}
+    shift_count = 1
+    for pt in past_duties["Point"]:
+        pt_clean = clean_point_name(pt)
+        if pt_clean not in history:
+            history[pt_clean] = shift_count
+        shift_count += 1
+    return history
+
+def get_penalty(guard_name, point_name, history_map):
+    pt_clean = clean_point_name(point_name)
+    hist = history_map[guard_name]
+    if pt_clean in hist:
+        shift_ago = hist[pt_clean]
+        # கடந்த 11 ஷிப்ட்களில் பார்த்த பாயிண்ட் என்றால் மிக அதிக பெனால்டி (10000)
+        # 1 நாளுக்கு முன் பார்த்தால் 9999, 10 நாளுக்கு முன் பார்த்தால் 9990.
+        if shift_ago <= 11:
+            return 10000 - shift_ago 
+        else:
+            return 100 - shift_ago # 12 நாட்களுக்கு முன் பார்த்தால் பெனால்டி குறைவு
+    return 0 # இதுவரை பார்க்காத பாயிண்ட் (Best Option)
 
 if check_password():
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
     
-    # --- SCREENSHOT MODE VIEW ---
     if st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
@@ -137,12 +156,7 @@ if check_password():
             if st.button("❌ EXIT SCREENSHOT MODE", use_container_width=True):
                 st.session_state["screenshot_mode"] = False
                 st.rerun()
-                
-            # Render nothing until db variables exist, but since it's a re-run they should be in session state 
-            # OR we just re-run the normal flow secretly to get variables, then hide normal UI.
-            # To be safe, we calculate everything in the main block and use CSS to show only the card.
 
-    # --- NORMAL UI STYLES ---
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
@@ -241,7 +255,7 @@ if check_password():
             elif force_sync:
                 if not st.session_state["screenshot_mode"]: st.info(f"🔄 Syncing with Google Sheet ({dynamic_sheet_name})...")
             
-            with st.spinner("Fetching Google Sheet & Calculating..."):
+            with st.spinner("Fetching Google Sheet & Calculating FULL CYCLE Rotation..."):
                 df_raw = pd.read_csv(url, header=None)
                 day_str = str(selected_date.day)
                 date_col_idx = None
@@ -301,13 +315,15 @@ if check_password():
                         shift_amt = day_of_year % len(available_today)
                         available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
+                    # --- ADVANCED FULL-CYCLE AI ENGINE ---
                     final_assignments = {}
                     unassigned_guards = []
                     history_map = {}
                     
+                    # 1. எடிட் செய்ததை அப்படியே வைப்பது
                     for guard in guards_pool:
                         g_name = guard['name']
-                        history_map[g_name] = get_blocked_points(g_name, date_str_key)
+                        history_map[g_name] = get_guard_history(g_name, date_str_key)
                         
                         if g_name in existing_guard_assignments:
                             pt = existing_guard_assignments[g_name]
@@ -319,37 +335,39 @@ if check_password():
                         else:
                             unassigned_guards.append(guard)
 
-                    unassigned_guards.sort(key=lambda g: sum(1 for p in available_today if is_blocked(p, history_map[g['name']])), reverse=True)
-
-                    for guard in unassigned_guards:
-                        g_name = guard['name']
-                        history = history_map[g_name]
+                    # 2. Monte Carlo Penalty Shuffle (500 முறை செக் செய்யும்)
+                    best_temp_assignments = {}
+                    least_penalty = float('inf')
+                    
+                    for attempt in range(500):
+                        temp_assignments = {}
+                        temp_available = list(available_today)
+                        current_penalty = 0
                         
-                        valid_points = [p for p in available_today if not is_blocked(p, history)]
+                        random.shuffle(unassigned_guards)
                         
-                        if valid_points:
-                            chosen_pt = valid_points[0]
-                            final_assignments[g_name] = chosen_pt
-                            available_today.remove(chosen_pt)
-                        else:
-                            swapped = False
-                            if available_today:
-                                bad_pt = available_today[0]
-                                for assigned_g, assigned_pt in list(final_assignments.items()):
-                                    assigned_hist = history_map[assigned_g]
-                                    if not is_blocked(bad_pt, assigned_hist):
-                                        if not is_blocked(assigned_pt, history):
-                                            final_assignments[assigned_g] = bad_pt
-                                            final_assignments[g_name] = assigned_pt
-                                            available_today.remove(bad_pt)
-                                            swapped = True
-                                            break
-                                    if swapped:
-                                        break
+                        for guard in unassigned_guards:
+                            g_name = guard['name']
                             
-                            if not swapped and available_today:
-                                chosen_pt = available_today.pop(0)
-                                final_assignments[g_name] = chosen_pt
+                            # எந்த பாயிண்ட்டுக்கு பெனால்டி குறைவோ அதை முதலில் வைக்கும்
+                            temp_available.sort(key=lambda p: get_penalty(g_name, p, history_map))
+                            
+                            best_score = get_penalty(g_name, temp_available[0], history_map)
+                            best_points = [p for p in temp_available if get_penalty(g_name, p, history_map) == best_score]
+                            
+                            chosen_pt = random.choice(best_points)
+                            temp_assignments[g_name] = chosen_pt
+                            current_penalty += best_score
+                            temp_available.remove(chosen_pt)
+
+                        if current_penalty < least_penalty:
+                            least_penalty = current_penalty
+                            best_temp_assignments = temp_assignments
+                            if least_penalty == 0:
+                                break # 100% Perfect Match Found!
+
+                    final_assignments.update(best_temp_assignments)
+                    # --- ENGINE END ---
 
                     rot_data = []
                     save_list = []
@@ -407,9 +425,7 @@ if check_password():
                     wo_names = ", ".join(week_offs) if week_offs else "NONE"
                     ol_names = ", ".join(on_leave) if on_leave else "NONE"
 
-        # --- DISPLAY RENDER ---
         if st.session_state["screenshot_mode"]:
-            # RENDER THE BEAUTIFUL CARD FOR SCREENSHOT
             html_rows = ""
             for _, row in df_display.iterrows():
                 name = row['Staff Name']
@@ -442,7 +458,6 @@ if check_password():
             st.markdown(card_html, unsafe_allow_html=True)
             
         else:
-            # NORMAL VIEW
             st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
             st.markdown(f"""<div class="stat-row">
@@ -511,7 +526,7 @@ if check_password():
                 st.markdown("<br>", unsafe_allow_html=True)
                 col1, col2, col3 = st.columns([1, 2, 1])
                 with col2:
-                    if st.button("📸 OPEN SCREENSHOT MODE (WhatsApp View)", use_container_width=True, type="primary"):
+                    if st.button("📸 OPEN SCREENSHOT MODE", use_container_width=True, type="primary"):
                         st.session_state["screenshot_mode"] = True
                         st.rerun()
             
