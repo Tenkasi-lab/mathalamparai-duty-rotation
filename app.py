@@ -89,13 +89,10 @@ def get_role_summary(date_str, shift_str):
            ", ".join(final_recep) if final_recep else "N/A", \
            ", ".join(well) if well else "N/A"
 
-# --- SUPER STRICT FULL-CYCLE LOGIC ---
 def clean_point_name(p):
-    # நம்பர்கள், புள்ளிகள் நீக்கி, வார்த்தையை மட்டும் ஒப்பிடும்
     return re.sub(r'[^A-Z]', '', str(p).upper())
 
 def get_guard_history(staff_name, current_date):
-    # ஒரு கார்டின் முழுமையான ஹிஸ்டரியை எடுக்கும் (Full History)
     if not os.path.exists(CSV_FILE): return {}
     df = pd.read_csv(CSV_FILE)
     if "Role" not in df.columns: return {}
@@ -121,13 +118,11 @@ def get_penalty(guard_name, point_name, history_map):
     hist = history_map[guard_name]
     if pt_clean in hist:
         shift_ago = hist[pt_clean]
-        # கடந்த 11 ஷிப்ட்களில் பார்த்த பாயிண்ட் என்றால் மிக அதிக பெனால்டி (10000)
-        # 1 நாளுக்கு முன் பார்த்தால் 9999, 10 நாளுக்கு முன் பார்த்தால் 9990.
         if shift_ago <= 11:
             return 10000 - shift_ago 
         else:
-            return 100 - shift_ago # 12 நாட்களுக்கு முன் பார்த்தால் பெனால்டி குறைவு
-    return 0 # இதுவரை பார்க்காத பாயிண்ட் (Best Option)
+            return 100 - shift_ago
+    return 0
 
 if check_password():
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
@@ -197,8 +192,8 @@ if check_password():
 
     selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
-    force_sync = st.sidebar.button("🔄 SYNC WITH SHEET", help="Click if you updated Google Sheet")
     
+    # --- பட்டன் நீக்கப்பட்டது! (Button Removed) ---
     st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
@@ -219,211 +214,213 @@ if check_password():
     try:
         db_df = load_database()
         date_str_key = selected_date.strftime("%Y-%m-%d")
-        
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
         has_guards = not shift_data[shift_data["Role"] == "GUARD"].empty
-        has_details = not shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR"])].empty
-        should_calculate = (not has_guards) or (has_guards and not has_details) or force_sync
+        
+        # --- NEW: LIVE BACKGROUND CHECK (Auto-Sync Sensor) ---
+        with st.spinner("🔄 Checking Live Updates in Sheet..."):
+            df_raw = pd.read_csv(url, header=None)
+            
+        day_str = str(selected_date.day)
+        date_col_idx = None
+        for r in range(min(15, len(df_raw))):
+            for c in range(len(df_raw.columns)):
+                if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
+                    date_col_idx = c; break
+            if date_col_idx is not None: break
 
-        if not should_calculate:
+        sheet_code = target_shift[0]
+        staff_on_duty, sups, week_offs, on_leave, general_staff = [], [], [], [], []
+        
+        if date_col_idx:
+            for i in range(len(df_raw)):
+                if i > 85: break
+                name = str(df_raw.iloc[i, 1]).strip().upper()
+                status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
+                
+                if name and name not in ["NAME", "NAN"]:
+                    if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
+                    elif status in ["L", "LEAVE"]: on_leave.append(name)
+                    elif status in ["G", "GEN", "GENERAL"]:
+                        if any(s in name for s in supervisors_pool): sups.append(f"{name} (GEN)") 
+                        else: general_staff.append(name)
+                    elif status == sheet_code: 
+                        if any(s in name for s in supervisors_pool): sups.append(name)
+                        else: staff_on_duty.append({'id': i, 'name': name})
+
+        # --- SMART DETECTION: Did anything change? ---
+        db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
+        db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
+        db_guards_names = shift_data[shift_data["Role"] == "GUARD"]["Staff Name"].tolist()
+        db_guards_real = [g for g in db_guards_names if g != "VACANT"]
+        
+        specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
+        regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
+        guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
+        sheet_guard_names = [g['name'] for g in guards_pool]
+
+        leaves_changed = (set(week_offs) != set(db_wo)) or (set(on_leave) != set(db_leave))
+        guards_changed = (set(sheet_guard_names) != set(db_guards_real))
+        
+        sync_needed = (not has_guards) or leaves_changed or guards_changed
+
+        # --- DECISION: Calculate or Load directly ---
+        if not sync_needed:
             if not secret_edit and not st.session_state["screenshot_mode"]: 
-                st.success("✅ LOADED FROM DATABASE")
+                st.success("✅ SYSTEM UP TO DATE (No changes in Sheet)")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
-            
-            wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
-            le = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
-            wo_names = ", ".join(wo) if wo else "NONE"
-            ol_names = ", ".join(le) if le else "NONE"
+            wo_names = ", ".join(week_offs) if week_offs else "NONE"
+            ol_names = ", ".join(on_leave) if on_leave else "NONE"
             
             guard_df = shift_data[shift_data["Role"] == "GUARD"].copy()
-            
             point_order = {p: i for i, p in enumerate(regular_duty_points)}
             def sort_key(pt):
                 if pt == "RECEPTION RELIEVER": return 0
                 return point_order.get(pt, 100 + int(pt.split('-')[1]) if "EXTRA" in pt else 200)
-            
             guard_df["sort_val"] = guard_df["Point"].apply(sort_key)
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
+            if has_guards and not st.session_state["screenshot_mode"]:
+                st.warning("⚠️ Sheet Updates Detected! Auto-Syncing...")
+
+            wellness = "VACANT"
+            if specialist_present: wellness = specialist_present['name']
+            elif selected_date.weekday() == 1 and guards_pool:
+                week_num = selected_date.isocalendar()[1]
+                wellness = guards_pool.pop(week_num % len(guards_pool))['name']
+
+            final_recep_team = [r['name'] for r in regular_recep_present]
+            reception_reliever_name = None
+            if selected_date.weekday() == 5 and guards_pool:
+                week_num = selected_date.isocalendar()[1]
+                reception_reliever_name = guards_pool.pop((week_num + 3) % len(guards_pool))['name']
+            
+            current_duty_points = list(regular_duty_points)
+            if target_shift == "C Shift": current_duty_points[9] = "10. ESCORT"
+
+            sacrifice_points = ["2. SECOND GATE", "7. A BLOCK AREA", "4. PATROLLING"]
+            shortage = 12 - len(guards_pool)
+            points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
+            active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
+
+            available_today = list(active_duty_points)
+            day_of_year = selected_date.timetuple().tm_yday
+            if available_today:
+                shift_amt = day_of_year % len(available_today)
+                available_today = available_today[shift_amt:] + available_today[:shift_amt]
+
+            final_assignments = {}
+            unassigned_guards = []
+            history_map = {}
+            
             existing_guard_assignments = {}
-            if force_sync and not shift_data.empty:
-                if not st.session_state["screenshot_mode"]: st.info(f"🔄 Smart Syncing with Google Sheet...")
+            if not shift_data.empty:
                 for _, r in shift_data[shift_data["Role"] == "GUARD"].iterrows():
                     existing_guard_assignments[r["Staff Name"]] = r["Point"]
-            elif force_sync:
-                if not st.session_state["screenshot_mode"]: st.info(f"🔄 Syncing with Google Sheet ({dynamic_sheet_name})...")
             
-            with st.spinner("Fetching Google Sheet & Calculating FULL CYCLE Rotation..."):
-                df_raw = pd.read_csv(url, header=None)
-                day_str = str(selected_date.day)
-                date_col_idx = None
-                for r in range(min(15, len(df_raw))):
-                    for c in range(len(df_raw.columns)):
-                        if str(df_raw.iloc[r, c]).strip() in [day_str, day_str.zfill(2)]:
-                            date_col_idx = c; break
-                    if date_col_idx is not None: break
+            for guard in guards_pool:
+                g_name = guard['name']
+                history_map[g_name] = get_guard_history(g_name, date_str_key)
+                
+                if g_name in existing_guard_assignments:
+                    pt = existing_guard_assignments[g_name]
+                    if pt in available_today:
+                        final_assignments[g_name] = pt
+                        available_today.remove(pt)
+                    else:
+                        unassigned_guards.append(guard)
+                else:
+                    unassigned_guards.append(guard)
 
-                if date_col_idx:
-                    shift_code = target_shift[0]
-                    staff_on_duty, sups, week_offs, on_leave = [], [], [], []
-                    general_staff = []
-
-                    for i in range(len(df_raw)):
-                        if i > 85: break
-                        name = str(df_raw.iloc[i, 1]).strip().upper()
-                        status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
+            best_temp_assignments = {}
+            least_penalty = float('inf')
+            
+            for attempt in range(500):
+                temp_assignments = {}
+                temp_available = list(available_today)
+                current_penalty = 0
+                
+                random.shuffle(unassigned_guards)
+                
+                for guard in unassigned_guards:
+                    g_name = guard['name']
+                    
+                    temp_available.sort(key=lambda p: get_penalty(g_name, p, history_map))
+                    
+                    if temp_available:
+                        best_score = get_penalty(g_name, temp_available[0], history_map)
+                        best_points = [p for p in temp_available if get_penalty(g_name, p, history_map) == best_score]
                         
-                        if name and name not in ["NAME", "NAN"]:
-                            if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
-                            elif status in ["L", "LEAVE"]: on_leave.append(name)
-                            elif status in ["G", "GEN", "GENERAL"]:
-                                if any(s in name for s in supervisors_pool): sups.append(f"{name} (GEN)") 
-                                else: general_staff.append(name)
-                            elif status == shift_code: 
-                                if any(s in name for s in supervisors_pool): sups.append(name)
-                                else: staff_on_duty.append({'id': i, 'name': name})
+                        chosen_pt = random.choice(best_points)
+                        temp_assignments[g_name] = chosen_pt
+                        current_penalty += best_score
+                        temp_available.remove(chosen_pt)
 
-                    specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
-                    regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
-                    guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
+                if current_penalty < least_penalty:
+                    least_penalty = current_penalty
+                    best_temp_assignments = temp_assignments
+                    if least_penalty == 0:
+                        break 
 
-                    wellness = "VACANT"
-                    if specialist_present: wellness = specialist_present['name']
-                    elif selected_date.weekday() == 1 and guards_pool:
-                        week_num = selected_date.isocalendar()[1]
-                        wellness = guards_pool.pop(week_num % len(guards_pool))['name']
+            final_assignments.update(best_temp_assignments)
 
-                    final_recep_team = [r['name'] for r in regular_recep_present]
-                    reception_reliever_name = None
-                    if selected_date.weekday() == 5 and guards_pool:
-                        week_num = selected_date.isocalendar()[1]
-                        reception_reliever_name = guards_pool.pop((week_num + 3) % len(guards_pool))['name']
+            rot_data = []
+            save_list = []
+            
+            for name, point in final_assignments.items():
+                rot_data.append({"Point": point, "Staff Name": name})
+                save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": name, "Point": point, "Role": "GUARD"})
+            
+            if reception_reliever_name:
+                rot_data.append({"Point": "RECEPTION RELIEVER", "Staff Name": reception_reliever_name})
+                save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": reception_reliever_name, "Point": "RECEPTION RELIEVER", "Role": "GUARD"})
+
+            assigned_names = list(final_assignments.keys())
+            if reception_reliever_name: assigned_names.append(reception_reliever_name)
+            
+            extra_c = 1
+            for guard in guards_pool:
+                if guard['name'] not in assigned_names:
+                    p_name = f"EXTRA-{extra_c}. GENERAL RELIEVER"
+                    rot_data.append({"Point": p_name, "Staff Name": guard['name']})
+                    save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": guard['name'], "Point": p_name, "Role": "GUARD"})
+                    extra_c += 1
+
+            assigned_point_names = final_assignments.values()
+            for pt in current_duty_points:
+                if pt not in assigned_point_names:
+                    rot_data.append({"Point": pt, "Staff Name": "VACANT"})
+                    save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": pt, "Role": "GUARD"})
+            
+            if target_shift == "A Shift":
+                gen_start = 13
+                for g in general_staff:
+                    p_name = f"{gen_start}. OLD CAR PARKING (General)"
+                    rot_data.append({"Point": p_name, "Staff Name": g})
+                    save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": g, "Point": p_name, "Role": "GUARD"})
+                    gen_start += 1
                     
-                    current_duty_points = list(regular_duty_points)
-                    if target_shift == "C Shift": current_duty_points[9] = "10. ESCORT"
+            for s in sups: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": s, "Point": "SUPERVISOR", "Role": "SUPERVISOR"})
+            for r in final_recep_team: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": r, "Point": "RECEPTION", "Role": "RECEPTION"})
+            if wellness != "VACANT": save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": wellness, "Point": "WELLNESS", "Role": "WELLNESS"})
+            for w in week_offs: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": w, "Point": "WO", "Role": "WO"})
+            for l in on_leave: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": l, "Point": "LEAVE", "Role": "LEAVE"})
 
-                    sacrifice_points = ["2. SECOND GATE", "7. A BLOCK AREA", "4. PATROLLING"]
-                    shortage = 12 - len(guards_pool)
-                    points_forced_vacant = sacrifice_points[:shortage] if shortage > 0 else []
-                    active_duty_points = [p for p in current_duty_points if p not in points_forced_vacant]
+            save_to_database(save_list)
+            
+            point_order = {p: i for i, p in enumerate(current_duty_points)}
+            def sort_key(pt):
+                if pt == "RECEPTION RELIEVER": return 0
+                return point_order.get(pt, 100 + int(pt.split('-')[1]) if "EXTRA" in pt else 200)
 
-                    available_today = list(active_duty_points)
-                    day_of_year = selected_date.timetuple().tm_yday
-                    if available_today:
-                        shift_amt = day_of_year % len(available_today)
-                        available_today = available_today[shift_amt:] + available_today[:shift_amt]
-
-                    # --- ADVANCED FULL-CYCLE AI ENGINE ---
-                    final_assignments = {}
-                    unassigned_guards = []
-                    history_map = {}
-                    
-                    # 1. எடிட் செய்ததை அப்படியே வைப்பது
-                    for guard in guards_pool:
-                        g_name = guard['name']
-                        history_map[g_name] = get_guard_history(g_name, date_str_key)
-                        
-                        if g_name in existing_guard_assignments:
-                            pt = existing_guard_assignments[g_name]
-                            if pt in available_today:
-                                final_assignments[g_name] = pt
-                                available_today.remove(pt)
-                            else:
-                                unassigned_guards.append(guard)
-                        else:
-                            unassigned_guards.append(guard)
-
-                    # 2. Monte Carlo Penalty Shuffle (500 முறை செக் செய்யும்)
-                    best_temp_assignments = {}
-                    least_penalty = float('inf')
-                    
-                    for attempt in range(500):
-                        temp_assignments = {}
-                        temp_available = list(available_today)
-                        current_penalty = 0
-                        
-                        random.shuffle(unassigned_guards)
-                        
-                        for guard in unassigned_guards:
-                            g_name = guard['name']
-                            
-                            # எந்த பாயிண்ட்டுக்கு பெனால்டி குறைவோ அதை முதலில் வைக்கும்
-                            temp_available.sort(key=lambda p: get_penalty(g_name, p, history_map))
-                            
-                            best_score = get_penalty(g_name, temp_available[0], history_map)
-                            best_points = [p for p in temp_available if get_penalty(g_name, p, history_map) == best_score]
-                            
-                            chosen_pt = random.choice(best_points)
-                            temp_assignments[g_name] = chosen_pt
-                            current_penalty += best_score
-                            temp_available.remove(chosen_pt)
-
-                        if current_penalty < least_penalty:
-                            least_penalty = current_penalty
-                            best_temp_assignments = temp_assignments
-                            if least_penalty == 0:
-                                break # 100% Perfect Match Found!
-
-                    final_assignments.update(best_temp_assignments)
-                    # --- ENGINE END ---
-
-                    rot_data = []
-                    save_list = []
-                    
-                    for name, point in final_assignments.items():
-                        rot_data.append({"Point": point, "Staff Name": name})
-                        save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": name, "Point": point, "Role": "GUARD"})
-                    
-                    if reception_reliever_name:
-                        rot_data.append({"Point": "RECEPTION RELIEVER", "Staff Name": reception_reliever_name})
-                        save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": reception_reliever_name, "Point": "RECEPTION RELIEVER", "Role": "GUARD"})
-
-                    assigned_names = list(final_assignments.keys())
-                    if reception_reliever_name: assigned_names.append(reception_reliever_name)
-                    
-                    extra_c = 1
-                    for guard in guards_pool:
-                        if guard['name'] not in assigned_names:
-                            p_name = f"EXTRA-{extra_c}. GENERAL RELIEVER"
-                            rot_data.append({"Point": p_name, "Staff Name": guard['name']})
-                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": guard['name'], "Point": p_name, "Role": "GUARD"})
-                            extra_c += 1
-
-                    assigned_point_names = final_assignments.values()
-                    for pt in current_duty_points:
-                        if pt not in assigned_point_names:
-                            rot_data.append({"Point": pt, "Staff Name": "VACANT"})
-                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": "VACANT", "Point": pt, "Role": "GUARD"})
-                    
-                    if target_shift == "A Shift":
-                        gen_start = 13
-                        for g in general_staff:
-                            p_name = f"{gen_start}. OLD CAR PARKING (General)"
-                            rot_data.append({"Point": p_name, "Staff Name": g})
-                            save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": g, "Point": p_name, "Role": "GUARD"})
-                            gen_start += 1
-                            
-                    for s in sups: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": s, "Point": "SUPERVISOR", "Role": "SUPERVISOR"})
-                    for r in final_recep_team: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": r, "Point": "RECEPTION", "Role": "RECEPTION"})
-                    if wellness != "VACANT": save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": wellness, "Point": "WELLNESS", "Role": "WELLNESS"})
-                    for w in week_offs: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": w, "Point": "WO", "Role": "WO"})
-                    for l in on_leave: save_list.append({"Date": date_str_key, "Shift": target_shift, "Staff Name": l, "Point": "LEAVE", "Role": "LEAVE"})
-
-                    save_to_database(save_list)
-                    
-                    point_order = {p: i for i, p in enumerate(current_duty_points)}
-                    def sort_key(pt):
-                        if pt == "RECEPTION RELIEVER": return 0
-                        return point_order.get(pt, 100 + int(pt.split('-')[1]) if "EXTRA" in pt else 200)
-
-                    rot_data.sort(key=lambda x: sort_key(x["Point"]))
-                    df_display = pd.DataFrame(rot_data)
-                    
-                    sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
-                    wo_names = ", ".join(week_offs) if week_offs else "NONE"
-                    ol_names = ", ".join(on_leave) if on_leave else "NONE"
+            rot_data.sort(key=lambda x: sort_key(x["Point"]))
+            df_display = pd.DataFrame(rot_data)
+            
+            sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
+            wo_names = ", ".join(week_offs) if week_offs else "NONE"
+            ol_names = ", ".join(on_leave) if on_leave else "NONE"
 
         if st.session_state["screenshot_mode"]:
             html_rows = ""
