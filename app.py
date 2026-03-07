@@ -27,117 +27,16 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # --- NEW ULTRA-PREMIUM HOLO-LOGIN UI ---
         st.markdown("""
             <style>
-            /* Reset & Core Styling */
-            @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap');
-            
-            .stApp { 
-                font-family: 'Space Grotesk', sans-serif;
-                background: #020617; 
-                overflow: hidden;
-            }
-            
-            /* Hide Streamlit components on login page */
-            header, [data-testid="stSidebar"], .stDeployButton {visibility: hidden; display: none !important;}
-            
-            /* Background Schematic Grid */
-            .stApp::before {
-                content: '';
-                position: absolute;
-                width: 200%; height: 200%;
-                top: -50%; left: -50%;
-                background-image: 
-                    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
-                background-size: 40px 40px;
-                transform: rotate(15deg);
-                z-index: -1;
-            }
-            
-            /* Main Holographic Container */
-            .login-container {
-                display: flex; flex-direction: column; align-items: center; justify-content: center;
-                height: 80vh; margin-top: 10vh; text-align: center;
-                perspective: 1000px;
-            }
-            
-            .holo-card {
-                background: rgba(30, 41, 59, 0.1);
-                backdrop-filter: blur(25px);
-                border: 1px solid rgba(56, 189, 248, 0.15);
-                border-radius: 20px;
-                padding: 60px 50px;
-                box-shadow: 0 0 50px rgba(56, 189, 248, 0.1), inset 0 0 15px rgba(56, 189, 248, 0.1);
-                animation: floatIn 1.5s ease-out, floatCard 6s ease-in-out infinite;
-                transform-style: preserve-3d;
-            }
-            
-            /* Shield Icon with Dynamic Light Beams */
-            .shield-icon {
-                font-size: 90px;
-                position: relative; margin-bottom: 25px;
-                filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.7));
-            }
-            .shield-icon::after {
-                content: ''; position: absolute;
-                width: 150px; height: 150px;
-                top: 50%; left: 50%; transform: translate(-50%, -50%);
-                background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, transparent 70%);
-                z-index: -1;
-            }
-            
-            /* Main Title & Subtitle Styling */
-            .portal-title {
-                font-size: 56px; font-weight: 900; letter-spacing: 8px;
-                background: linear-gradient(135deg, #ffffff 10%, #38bdf8 60%, #ffffff 100%);
-                -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                margin: 0; padding-bottom: 5px;
-            }
-            .portal-subtitle {
-                color: #94a3b8; letter-spacing: 10px; font-size: 15px; font-weight: 500;
-                margin-top: 5px; margin-bottom: 40px; text-transform: uppercase;
-            }
-            
-            /* Placeholder for Faint Data Readouts */
-            .data-readout {
-                position: absolute; color: rgba(56, 189, 248, 0.2);
-                font-family: monospace; font-size: 10px; letter-spacing: 2px;
-                user-select: none;
-            }
-            .dr-tl {top: 10px; left: 10px;} .dr-tr {top: 10px; right: 10px;}
-            .dr-bl {bottom: 10px; left: 10px;} .dr-br {bottom: 10px; right: 10px;}
-
-            /* Animations */
-            @keyframes floatIn {
-                0% { opacity: 0; transform: translateY(50px) rotateX(-20deg); }
-                100% { opacity: 1; transform: translateY(0) rotateX(0); }
-            }
-            @keyframes floatCard {
-                0%, 100% { transform: translateY(0) rotateX(0deg); }
-                50% { transform: translateY(-10px) rotateX(2deg); }
-            }
+            .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+            .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); padding: 40px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; color: white; margin-top: 50px; }
             </style>
-            
-            <div class="login-container">
-                <div class="holo-card">
-                    <span class="data-readout dr-tl">SYS.STATUS:OK</span>
-                    <span class="data-readout dr-tr">SEC_LVL.5</span>
-                    <div class="shield-icon">🛡️</div>
-                    <h1 class="portal-title">MATHALAMPARAI</h1>
-                    <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
-                    <span class="data-readout dr-bl">LAT.10.8</span>
-                    <span class="data-readout dr-br">LNG.78.2</span>
-                </div>
-            </div>
+            <div class='login-card'><h1>🛡️</h1><h2>MATHALAMPARAI</h2><p>EXECUTIVE DUTY PORTAL</p></div>
         """, unsafe_allow_html=True)
-        
-        # Centered input field without label
-        col1, col2, col3 = st.columns([1, 1, 1])
+        col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
-            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="🔒 ENTER PASSCODE TO ACCESS")
-        
+            st.text_input("ENTER PASSWORD", type="password", on_change=password_entered, key="password")
         return False
     return True
 
@@ -235,7 +134,7 @@ if check_password():
         if elapsed_time > timedelta(minutes=TIMEOUT_MINUTES):
             st.session_state["password_correct"] = False
             st.session_state["screenshot_mode"] = False
-            st.warning("⏱️ Session Expired! (5 நிமிடங்களுக்கு மேல் பயன்படுத்தாததால் சிஸ்டம் லாக் செய்யப்பட்டது)")
+            st.warning("⏱️ Session Expired! (5 nimidangalukku mel payanpaduthathathal system lock seyyappattathu)")
             st.rerun()
             
     st.session_state["last_active"] = datetime.now()
@@ -271,7 +170,7 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
-            .stApp { background-color: #f8fafc; font-family: sans-serif; }
+            .stApp { background-color: #f8fafc; }
             [data-testid="stSidebar"] { background-color: #0f172a !important; }
             [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
             .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
@@ -314,7 +213,7 @@ if check_password():
 
     selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
     
-    # --- AUTO SHIFT SELECTION LOGIC ---
+    # --- NEW: AUTO SHIFT SELECTION LOGIC ---
     if 4 <= current_hour < 12: # 4 AM to 11:59 AM
         default_shift_index = 0  # A Shift
     elif 12 <= current_hour < 19: # 12 PM to 6:59 PM
@@ -331,7 +230,7 @@ if check_password():
         st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
-    wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULson"]
+    wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
@@ -554,15 +453,25 @@ if check_password():
                 html_rows += f"<tr><td>{row['Point']}</td><td class='{style_class}'>{name}</td></tr>"
 
             card_html = f"""
-            <div class="login-container">
-                <div class="holo-card">
-                    <span class="data-readout dr-tl">SYS.STATUS:OK</span>
-                    <span class="data-readout dr-tr">SEC_LVL.5</span>
-                    <div class="shield-icon">🛡️</div>
-                    <h1 class="portal-title">MATHALAMPARAI</h1>
-                    <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
-                    <span class="data-readout dr-bl">LAT.10.8</span>
-                    <span class="data-readout dr-br">LNG.78.2</span>
+            <div class="roster-card">
+                <div class="roster-header">
+                    🛡️ MATHALAMPARAI ROSTER <br>
+                    <span style="font-size: 15px; font-weight: normal;">{selected_date.strftime("%d %b %Y")} | {target_shift}</span>
+                </div>
+                <div class="roster-body">
+                    <div class="info-text">
+                        <b>👨‍💼 Supervisor:</b> {sups_text}<br>
+                        <b>👩‍💼 Reception:</b> {recep_text}<br>
+                        <b>⚕️ Wellness:</b> {wellness_text}
+                    </div>
+                    <table class="roster-table">
+                        <tr><th>📍 Duty Point</th><th>💂 Assigned Staff</th></tr>
+                        {html_rows}
+                    </table>
+                    <div class="footer-card">
+                        <span style="color:#dc2626;">🏖️ Week Off:</span> {wo_names}<br>
+                        <span style="color:#dc2626;">🏥 On Leave:</span> {ol_names}
+                    </div>
                 </div>
             </div>
             """
