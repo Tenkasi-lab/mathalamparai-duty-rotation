@@ -27,16 +27,79 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
+        # --- NEW PREMIUM LOGIN PAGE UI ---
         st.markdown("""
             <style>
-            .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
-            .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); padding: 40px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; color: white; margin-top: 50px; }
+            /* Premium Dark Radial Background */
+            .stApp { 
+                background: radial-gradient(circle at 50% 20%, #1e293b 0%, #020617 100%); 
+            }
+            
+            /* Hide top header and sidebar in login page */
+            header {visibility: hidden;}
+            [data-testid="stSidebar"] {display: none;}
+            
+            /* Main Login Container Styling */
+            .login-wrapper {
+                text-align: center;
+                animation: fadeIn 1.2s ease-out;
+                margin-top: 15vh;
+                margin-bottom: 2rem;
+            }
+            
+            /* Glowing Shield Icon with Pulse Effect */
+            .shield-icon {
+                font-size: 80px;
+                filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.8));
+                margin-bottom: 15px;
+                animation: pulse 2.5s infinite;
+            }
+            
+            /* Gradient Text for Title */
+            .portal-title {
+                font-size: 42px;
+                font-weight: 900;
+                letter-spacing: 5px;
+                background: linear-gradient(135deg, #ffffff 0%, #38bdf8 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin: 0;
+                padding-bottom: 5px;
+            }
+            
+            /* Subtitle Styling */
+            .portal-subtitle {
+                color: #94a3b8;
+                letter-spacing: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                margin-top: 0;
+            }
+            
+            /* Animations */
+            @keyframes fadeIn {
+                0% { opacity: 0; transform: translateY(-30px); }
+                100% { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4)); }
+                50% { transform: scale(1.08); filter: drop-shadow(0 0 35px rgba(56, 189, 248, 1)); }
+                100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4)); }
+            }
             </style>
-            <div class='login-card'><h1>🛡️</h1><h2>MATHALAMPARAI</h2><p>EXECUTIVE DUTY PORTAL</p></div>
+            
+            <div class="login-wrapper">
+                <div class="shield-icon">🛡️</div>
+                <h1 class="portal-title">MATHALAMPARAI</h1>
+                <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
+            </div>
         """, unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1, 1.5, 1])
+        
+        # Center the input box with a nice layout
+        col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            st.text_input("ENTER PASSWORD", type="password", on_change=password_entered, key="password")
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter Password to Unlock...")
+        
         return False
     return True
 
@@ -134,7 +197,7 @@ if check_password():
         if elapsed_time > timedelta(minutes=TIMEOUT_MINUTES):
             st.session_state["password_correct"] = False
             st.session_state["screenshot_mode"] = False
-            st.warning("⏱️ Session Expired! (5 nimidangalukku mel payanpaduthathathal system lock seyyappattathu)")
+            st.warning("⏱️ Session Expired! (5 நிமிடங்களுக்கு மேல் பயன்படுத்தாததால் சிஸ்டம் லாக் செய்யப்பட்டது)")
             st.rerun()
             
     st.session_state["last_active"] = datetime.now()
@@ -213,7 +276,7 @@ if check_password():
 
     selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
     
-    # --- NEW: AUTO SHIFT SELECTION LOGIC ---
+    # --- AUTO SHIFT SELECTION LOGIC ---
     if 4 <= current_hour < 12: # 4 AM to 11:59 AM
         default_shift_index = 0  # A Shift
     elif 12 <= current_hour < 19: # 12 PM to 6:59 PM
