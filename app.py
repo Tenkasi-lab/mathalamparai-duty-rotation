@@ -27,78 +27,116 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # --- NEW PREMIUM LOGIN PAGE UI ---
+        # --- NEW ULTRA-PREMIUM HOLO-LOGIN UI ---
         st.markdown("""
             <style>
-            /* Premium Dark Radial Background */
+            /* Reset & Core Styling */
+            @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap');
+            
             .stApp { 
-                background: radial-gradient(circle at 50% 20%, #1e293b 0%, #020617 100%); 
+                font-family: 'Space Grotesk', sans-serif;
+                background: #020617; 
+                overflow: hidden;
             }
             
-            /* Hide top header and sidebar in login page */
-            header {visibility: hidden;}
-            [data-testid="stSidebar"] {display: none;}
+            /* Hide Streamlit components on login page */
+            header, [data-testid="stSidebar"], .stDeployButton {visibility: hidden; display: none !important;}
             
-            /* Main Login Container Styling */
-            .login-wrapper {
-                text-align: center;
-                animation: fadeIn 1.2s ease-out;
-                margin-top: 15vh;
-                margin-bottom: 2rem;
+            /* Background Schematic Grid */
+            .stApp::before {
+                content: '';
+                position: absolute;
+                width: 200%; height: 200%;
+                top: -50%; left: -50%;
+                background-image: 
+                    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+                background-size: 40px 40px;
+                transform: rotate(15deg);
+                z-index: -1;
             }
             
-            /* Glowing Shield Icon with Pulse Effect */
+            /* Main Holographic Container */
+            .login-container {
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                height: 80vh; margin-top: 10vh; text-align: center;
+                perspective: 1000px;
+            }
+            
+            .holo-card {
+                background: rgba(30, 41, 59, 0.1);
+                backdrop-filter: blur(25px);
+                border: 1px solid rgba(56, 189, 248, 0.15);
+                border-radius: 20px;
+                padding: 60px 50px;
+                box-shadow: 0 0 50px rgba(56, 189, 248, 0.1), inset 0 0 15px rgba(56, 189, 248, 0.1);
+                animation: floatIn 1.5s ease-out, floatCard 6s ease-in-out infinite;
+                transform-style: preserve-3d;
+            }
+            
+            /* Shield Icon with Dynamic Light Beams */
             .shield-icon {
-                font-size: 80px;
-                filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.8));
-                margin-bottom: 15px;
-                animation: pulse 2.5s infinite;
+                font-size: 90px;
+                position: relative; margin-bottom: 25px;
+                filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.7));
+            }
+            .shield-icon::after {
+                content: ''; position: absolute;
+                width: 150px; height: 150px;
+                top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, transparent 70%);
+                z-index: -1;
             }
             
-            /* Gradient Text for Title */
+            /* Main Title & Subtitle Styling */
             .portal-title {
-                font-size: 42px;
-                font-weight: 900;
-                letter-spacing: 5px;
-                background: linear-gradient(135deg, #ffffff 0%, #38bdf8 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                margin: 0;
-                padding-bottom: 5px;
+                font-size: 56px; font-weight: 900; letter-spacing: 8px;
+                background: linear-gradient(135deg, #ffffff 10%, #38bdf8 60%, #ffffff 100%);
+                -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                margin: 0; padding-bottom: 5px;
             }
-            
-            /* Subtitle Styling */
             .portal-subtitle {
-                color: #94a3b8;
-                letter-spacing: 8px;
-                font-size: 14px;
-                font-weight: 600;
-                margin-top: 0;
+                color: #94a3b8; letter-spacing: 10px; font-size: 15px; font-weight: 500;
+                margin-top: 5px; margin-bottom: 40px; text-transform: uppercase;
             }
             
-            /* Animations */
-            @keyframes fadeIn {
-                0% { opacity: 0; transform: translateY(-30px); }
-                100% { opacity: 1; transform: translateY(0); }
+            /* Placeholder for Faint Data Readouts */
+            .data-readout {
+                position: absolute; color: rgba(56, 189, 248, 0.2);
+                font-family: monospace; font-size: 10px; letter-spacing: 2px;
+                user-select: none;
             }
-            @keyframes pulse {
-                0% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4)); }
-                50% { transform: scale(1.08); filter: drop-shadow(0 0 35px rgba(56, 189, 248, 1)); }
-                100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4)); }
+            .dr-tl {top: 10px; left: 10px;} .dr-tr {top: 10px; right: 10px;}
+            .dr-bl {bottom: 10px; left: 10px;} .dr-br {bottom: 10px; right: 10px;}
+
+            /* Animations */
+            @keyframes floatIn {
+                0% { opacity: 0; transform: translateY(50px) rotateX(-20deg); }
+                100% { opacity: 1; transform: translateY(0) rotateX(0); }
+            }
+            @keyframes floatCard {
+                0%, 100% { transform: translateY(0) rotateX(0deg); }
+                50% { transform: translateY(-10px) rotateX(2deg); }
             }
             </style>
             
-            <div class="login-wrapper">
-                <div class="shield-icon">🛡️</div>
-                <h1 class="portal-title">MATHALAMPARAI</h1>
-                <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
+            <div class="login-container">
+                <div class="holo-card">
+                    <span class="data-readout dr-tl">SYS.STATUS:OK</span>
+                    <span class="data-readout dr-tr">SEC_LVL.5</span>
+                    <div class="shield-icon">🛡️</div>
+                    <h1 class="portal-title">MATHALAMPARAI</h1>
+                    <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
+                    <span class="data-readout dr-bl">LAT.10.8</span>
+                    <span class="data-readout dr-br">LNG.78.2</span>
+                </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # Center the input box with a nice layout
+        # Centered input field without label
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter Password to Unlock...")
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="🔒 ENTER PASSCODE TO ACCESS")
         
         return False
     return True
@@ -233,7 +271,7 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
-            .stApp { background-color: #f8fafc; }
+            .stApp { background-color: #f8fafc; font-family: sans-serif; }
             [data-testid="stSidebar"] { background-color: #0f172a !important; }
             [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
             .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
@@ -293,7 +331,7 @@ if check_password():
         st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
-    wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
+    wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULson"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
@@ -516,25 +554,15 @@ if check_password():
                 html_rows += f"<tr><td>{row['Point']}</td><td class='{style_class}'>{name}</td></tr>"
 
             card_html = f"""
-            <div class="roster-card">
-                <div class="roster-header">
-                    🛡️ MATHALAMPARAI ROSTER <br>
-                    <span style="font-size: 15px; font-weight: normal;">{selected_date.strftime("%d %b %Y")} | {target_shift}</span>
-                </div>
-                <div class="roster-body">
-                    <div class="info-text">
-                        <b>👨‍💼 Supervisor:</b> {sups_text}<br>
-                        <b>👩‍💼 Reception:</b> {recep_text}<br>
-                        <b>⚕️ Wellness:</b> {wellness_text}
-                    </div>
-                    <table class="roster-table">
-                        <tr><th>📍 Duty Point</th><th>💂 Assigned Staff</th></tr>
-                        {html_rows}
-                    </table>
-                    <div class="footer-card">
-                        <span style="color:#dc2626;">🏖️ Week Off:</span> {wo_names}<br>
-                        <span style="color:#dc2626;">🏥 On Leave:</span> {ol_names}
-                    </div>
+            <div class="login-container">
+                <div class="holo-card">
+                    <span class="data-readout dr-tl">SYS.STATUS:OK</span>
+                    <span class="data-readout dr-tr">SEC_LVL.5</span>
+                    <div class="shield-icon">🛡️</div>
+                    <h1 class="portal-title">MATHALAMPARAI</h1>
+                    <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
+                    <span class="data-readout dr-bl">LAT.10.8</span>
+                    <span class="data-readout dr-br">LNG.78.2</span>
                 </div>
             </div>
             """
