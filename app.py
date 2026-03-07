@@ -21,7 +21,6 @@ def check_password():
     def password_entered():
         if st.session_state["password"] == "Sec@2026": 
             st.session_state["password_correct"] = True
-            # லாகின் செய்த நேரத்தை குறித்து வைத்துக்கொள்ளும்
             st.session_state["last_active"] = datetime.now()
             del st.session_state["password"]
         else:
@@ -127,19 +126,17 @@ def get_penalty(guard_name, point_name, history_map):
     return 0
 
 if check_password():
-    # --- NEW: AUTO-LOGOUT LOGIC ---
-    TIMEOUT_MINUTES = 5 # 5 நிமிடம் காலக்கெடு (தேவைப்பட்டால் மாற்றிக்கொள்ளலாம்)
+    # --- AUTO-LOGOUT LOGIC ---
+    TIMEOUT_MINUTES = 5 
     
     if "last_active" in st.session_state:
         elapsed_time = datetime.now() - st.session_state["last_active"]
         if elapsed_time > timedelta(minutes=TIMEOUT_MINUTES):
-            # 5 நிமிடம் ஆகிவிட்டால், பாஸ்வேர்டை அழித்துவிட்டு வெளியேற்றிவிடும்
             st.session_state["password_correct"] = False
             st.session_state["screenshot_mode"] = False
-            st.warning("⏱️ Session Expired! (5 நிமிடங்களுக்கு மேல் பயன்படுத்தாததால் சிஸ்டம் லாக் செய்யப்பட்டது)")
+            st.warning("⏱️ Session Expired! (5 nimidangalukku mel payanpaduthathathal system lock seyyappattathu)")
             st.rerun()
             
-    # ஏதாவது க்ளிக் செய்தால், டைமரை மீண்டும் முதலில் இருந்து (0) ஆரம்பிக்கும்
     st.session_state["last_active"] = datetime.now()
     # ------------------------------
 
@@ -195,7 +192,13 @@ if check_password():
         st.rerun()
     st.sidebar.divider()
     
-    today_date = datetime.now().date()
+    # --- TIME CALCULATION ---
+    ist = pytz.timezone('Asia/Kolkata')
+    current_time_obj = datetime.now(ist)
+    current_time = current_time_obj.strftime("%I:%M %p")
+    current_hour = current_time_obj.hour
+    
+    today_date = current_time_obj.date()
     current_year = today_date.year
     
     ALLOWED_START_DATE = datetime(current_year, 1, 1).date()
@@ -209,13 +212,19 @@ if check_password():
         default_date = today_date
 
     selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
-    target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"])
+    
+    # --- NEW: AUTO SHIFT SELECTION LOGIC ---
+    if 4 <= current_hour < 12: # 4 AM to 11:59 AM
+        default_shift_index = 0  # A Shift
+    elif 12 <= current_hour < 19: # 12 PM to 6:59 PM
+        default_shift_index = 1  # B Shift
+    else: # 7 PM to 3:59 AM
+        default_shift_index = 2  # C Shift
+
+    target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"], index=default_shift_index)
     
     st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
-    
-    ist = pytz.timezone('Asia/Kolkata')
-    current_time = datetime.now(ist).strftime("%I:%M %p")
     
     if not st.session_state["screenshot_mode"]:
         st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
@@ -509,7 +518,7 @@ if check_password():
                     
                     if duplicates:
                         dup_names = ", ".join(set(duplicates))
-                        st.error(f"⚠️ பிழை: '{dup_names}' இரண்டு இடங்களில் உள்ளது! ஒருவருக்கு சரியாக மாற்றிவிட்டு சேவ் செய்யவும்.")
+                        st.error(f"⚠️ பிழை: '{dup_names}' irandu idangalil ullathu! Oruvarukku sariyaga matrivittu save seyyavum.")
                     else:
                         current_db = pd.read_csv(CSV_FILE)
                         mask_keep = ~((current_db["Date"] == date_str_key) & 
@@ -548,6 +557,6 @@ if check_password():
 
     except Exception as e:
         if "HTTP Error 400: Bad Request" in str(e):
-            st.error(f"⚠️ Error: Google Sheet-ல் '{dynamic_sheet_name}' என்ற பெயரில் Tab இல்லை! Sheet-ஐ சரிபார்க்கவும்.")
+            st.error(f"⚠️ Error: Google Sheet-il '{dynamic_sheet_name}' endra peyaril Tab illai! Sheet-ai saripaarkkavum.")
         else:
             st.error(f"System Error: {e}")
