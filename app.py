@@ -27,107 +27,94 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # --- NEW CLEAN MODERN WEB PAGE UI ---
+        # --- NEW PREMIUM GLASSMORPHISM UI ---
         st.markdown("""
             <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
             
-            /* Clean light background */
+            /* Deep ambient background */
             .stApp { 
-                font-family: 'Inter', sans-serif;
-                background-color: #f1f5f9;
+                font-family: 'Outfit', sans-serif;
+                background-color: #090e17;
                 background-image: 
-                    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
-                    radial-gradient(circle at 85% 30%, rgba(15, 23, 42, 0.05), transparent 25%);
+                    radial-gradient(circle at 15% 30%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                    radial-gradient(circle at 85% 70%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+                overflow: hidden;
             }
             
             header, [data-testid="stSidebar"], .stDeployButton {display: none !important;}
             
-            /* Style the center column to act as a Modern Card */
-            [data-testid="stVerticalBlock"] > div > div {
-                display: flex;
-                justify-content: center;
-            }
-            [data-testid="stHorizontalBlock"] {
-                margin-top: 15vh;
-                align-items: center;
-                justify-content: center;
-            }
+            /* Ambient glowing orbs */
+            .orb-1 { position: absolute; top: -10%; left: 10%; width: 500px; height: 500px; background: rgba(56, 189, 248, 0.15); border-radius: 50%; filter: blur(100px); z-index: 0; animation: float1 10s infinite alternate ease-in-out; }
+            .orb-2 { position: absolute; bottom: -10%; right: 10%; width: 400px; height: 400px; background: rgba(139, 92, 246, 0.15); border-radius: 50%; filter: blur(100px); z-index: 0; animation: float2 12s infinite alternate ease-in-out; }
+            
+            /* Center elements */
+            [data-testid="stVerticalBlock"] > div > div { display: flex; justify-content: center; z-index: 10; }
+            [data-testid="stHorizontalBlock"] { margin-top: 15vh; align-items: center; justify-content: center; z-index: 10; }
+            
+            /* The Frosted Glass Card */
             [data-testid="stHorizontalBlock"] > div:nth-child(2) {
-                background: white;
-                padding: 50px 40px 60px 40px;
-                border-radius: 24px;
-                box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05);
+                background: rgba(255, 255, 255, 0.02);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 28px;
+                padding: 50px 40px;
+                box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
                 text-align: center;
-                animation: slideUp 0.6s ease-out forwards;
-                max-width: 450px;
+                animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                max-width: 420px;
             }
             
-            /* Brand Logo and text styles */
-            .brand-logo {
-                background: linear-gradient(135deg, #0f172a 0%, #3b82f6 100%);
-                width: 72px; height: 72px;
-                border-radius: 20px;
+            /* Logo & Text styling */
+            .icon-wrapper {
+                width: 80px; height: 80px; margin: 0 auto 24px auto;
+                background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
+                border-radius: 22px;
                 display: flex; align-items: center; justify-content: center;
-                font-size: 34px; color: white;
-                margin: 0 auto 20px auto;
-                box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
-                transform: rotate(-5deg);
-                transition: transform 0.3s ease;
+                font-size: 38px; color: white;
+                box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.5);
+                border: 1px solid rgba(255,255,255,0.3);
             }
-            .brand-logo:hover {
-                transform: rotate(0deg);
-            }
-            .brand-title {
-                color: #0f172a;
-                font-size: 28px;
-                font-weight: 800;
-                letter-spacing: -0.5px;
-                margin: 0 0 8px 0;
-            }
-            .brand-sub {
-                color: #64748b;
-                font-size: 15px;
-                font-weight: 500;
-                margin: 0 0 35px 0;
-            }
+            .brand-title { color: white; font-size: 30px; font-weight: 800; letter-spacing: 1px; margin: 0 0 6px 0; }
+            .brand-sub { color: #94a3b8; font-size: 13px; font-weight: 500; letter-spacing: 3px; margin: 0 0 40px 0; text-transform: uppercase; }
             
-            /* Input field styling */
+            /* Elegant Dark Input */
             div[data-baseweb="input"] > div {
-                background-color: #f8fafc;
-                border: 2px solid #e2e8f0;
-                border-radius: 12px;
-                padding: 6px 10px;
-                transition: all 0.2s ease;
+                background-color: rgba(15, 23, 42, 0.5) !important;
+                border: 1px solid rgba(255,255,255,0.1) !important;
+                border-radius: 14px;
+                padding: 6px 12px;
+                transition: all 0.3s ease;
             }
             div[data-baseweb="input"] > div:focus-within {
-                background-color: #ffffff;
-                border-color: #3b82f6;
-                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+                background-color: rgba(15, 23, 42, 0.8) !important;
+                border-color: #38bdf8 !important;
+                box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15) !important;
             }
             input[type="password"] {
-                font-size: 16px; font-weight: 600; color: #0f172a; letter-spacing: 2px; text-align: center;
+                font-size: 16px; font-weight: 600; color: white !important; letter-spacing: 4px; text-align: center;
             }
-            input::placeholder {
-                letter-spacing: normal; font-weight: 400; color: #94a3b8;
-            }
+            input::placeholder { letter-spacing: normal; font-weight: 400; color: #475569 !important; }
             
-            @keyframes slideUp {
-                from { opacity: 0; transform: translateY(30px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes float1 { 0% { transform: translateY(0px) translateX(0px); } 100% { transform: translateY(-30px) translateX(30px); } }
+            @keyframes float2 { 0% { transform: translateY(0px) translateX(0px); } 100% { transform: translateY(30px) translateX(-30px); } }
             </style>
+            
+            <div class="orb-1"></div>
+            <div class="orb-2"></div>
         """, unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
             st.markdown("""
-                <div class="brand-logo">🛡️</div>
-                <h1 class="brand-title">Mathalamparai</h1>
+                <div class="icon-wrapper">🛡️</div>
+                <h1 class="brand-title">MATHALAMPARAI</h1>
                 <p class="brand-sub">Executive Duty Portal</p>
             """, unsafe_allow_html=True)
             
-            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter secure passcode...")
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter Passcode")
         
         return False
     return True
@@ -220,7 +207,6 @@ def get_penalty(guard_name, point_name, history_map):
     return 0 
 
 if check_password():
-    # --- AUTO-LOGOUT LOGIC ---
     TIMEOUT_MINUTES = 5 
     
     if "last_active" in st.session_state:
