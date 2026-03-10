@@ -29,14 +29,105 @@ def check_password():
     if not st.session_state["password_correct"]:
         st.markdown("""
             <style>
-            .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
-            .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); padding: 40px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; color: white; margin-top: 50px; }
+            @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap');
+            
+            .stApp { 
+                font-family: 'Space Grotesk', sans-serif;
+                background: #020617; 
+                overflow: hidden;
+            }
+            
+            header, [data-testid="stSidebar"], .stDeployButton {visibility: hidden; display: none !important;}
+            
+            .stApp::before {
+                content: '';
+                position: absolute;
+                width: 200%; height: 200%;
+                top: -50%; left: -50%;
+                background-image: 
+                    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+                background-size: 40px 40px;
+                transform: rotate(15deg);
+                z-index: -1;
+            }
+            
+            .login-container {
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                height: 80vh; margin-top: 10vh; text-align: center;
+                perspective: 1000px;
+            }
+            
+            .holo-card {
+                background: rgba(30, 41, 59, 0.1);
+                backdrop-filter: blur(25px);
+                border: 1px solid rgba(56, 189, 248, 0.15);
+                border-radius: 20px;
+                padding: 60px 50px;
+                box-shadow: 0 0 50px rgba(56, 189, 248, 0.1), inset 0 0 15px rgba(56, 189, 248, 0.1);
+                animation: floatIn 1.5s ease-out, floatCard 6s ease-in-out infinite;
+                transform-style: preserve-3d;
+            }
+            
+            .shield-icon {
+                font-size: 90px;
+                position: relative; margin-bottom: 25px;
+                filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.7));
+            }
+            .shield-icon::after {
+                content: ''; position: absolute;
+                width: 150px; height: 150px;
+                top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, transparent 70%);
+                z-index: -1;
+            }
+            
+            .portal-title {
+                font-size: 56px; font-weight: 900; letter-spacing: 8px;
+                background: linear-gradient(135deg, #ffffff 10%, #38bdf8 60%, #ffffff 100%);
+                -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                margin: 0; padding-bottom: 5px;
+            }
+            .portal-subtitle {
+                color: #94a3b8; letter-spacing: 10px; font-size: 15px; font-weight: 500;
+                margin-top: 5px; margin-bottom: 40px; text-transform: uppercase;
+            }
+            
+            .data-readout {
+                position: absolute; color: rgba(56, 189, 248, 0.2);
+                font-family: monospace; font-size: 10px; letter-spacing: 2px;
+                user-select: none;
+            }
+            .dr-tl {top: 10px; left: 10px;} .dr-tr {top: 10px; right: 10px;}
+            .dr-bl {bottom: 10px; left: 10px;} .dr-br {bottom: 10px; right: 10px;}
+
+            @keyframes floatIn {
+                0% { opacity: 0; transform: translateY(50px) rotateX(-20deg); }
+                100% { opacity: 1; transform: translateY(0) rotateX(0); }
+            }
+            @keyframes floatCard {
+                0%, 100% { transform: translateY(0) rotateX(0deg); }
+                50% { transform: translateY(-10px) rotateX(2deg); }
+            }
             </style>
-            <div class='login-card'><h1>🛡️</h1><h2>MATHALAMPARAI</h2><p>EXECUTIVE DUTY PORTAL</p></div>
+            
+            <div class="login-container">
+                <div class="holo-card">
+                    <span class="data-readout dr-tl">SYS.STATUS:OK</span>
+                    <span class="data-readout dr-tr">SEC_LVL.5</span>
+                    <div class="shield-icon">🛡️</div>
+                    <h1 class="portal-title">MATHALAMPARAI</h1>
+                    <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
+                    <span class="data-readout dr-bl">LAT.10.8</span>
+                    <span class="data-readout dr-br">LNG.78.2</span>
+                </div>
+            </div>
         """, unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1, 1.5, 1])
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            st.text_input("ENTER PASSWORD", type="password", on_change=password_entered, key="password")
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="🔒 ENTER PASSCODE TO ACCESS")
+        
         return False
     return True
 
@@ -90,8 +181,11 @@ def get_role_summary(date_str, shift_str):
            ", ".join(final_recep) if final_recep else "N/A", \
            ", ".join(well) if well else "N/A"
 
+# --- DEEP CHECK LOGIC FOR DATABASE ---
 def clean_point_name(p):
-    return re.sub(r'[^A-Z]', '', str(p).upper())
+    p_str = str(p).upper()
+    p_str = re.sub(r'^\d+\.\s*', '', p_str) 
+    return re.sub(r'[^A-Z0-9]', '', p_str)
 
 def get_guard_history(staff_name, current_date):
     if not os.path.exists(CSV_FILE): return {}
@@ -101,9 +195,10 @@ def get_guard_history(staff_name, current_date):
     df["DateObj"] = pd.to_datetime(df["Date"])
     current_date_obj = pd.to_datetime(current_date)
 
-    past_duties = df[(df["Staff Name"] == staff_name) & 
-                     (df["Role"] == "GUARD") & 
-                     (df["DateObj"] < current_date_obj)].sort_values(by="DateObj", ascending=False)
+    # Filtering ONLY past dates to ensure perfect chronological tracking
+    mask = (df["Staff Name"] == staff_name) & (df["Role"] == "GUARD") & (df["DateObj"] < current_date_obj)
+    past_duties = df[mask].copy()
+    past_duties = past_duties.sort_values(by="DateObj", ascending=False)
     
     history = {}
     shift_count = 1
@@ -116,14 +211,15 @@ def get_guard_history(staff_name, current_date):
 
 def get_penalty(guard_name, point_name, history_map):
     pt_clean = clean_point_name(point_name)
-    hist = history_map[guard_name]
+    hist = history_map.get(guard_name, {})
     if pt_clean in hist:
-        shift_ago = hist[pt_clean]
-        if shift_ago <= 11:
-            return 10000 - shift_ago 
+        shifts_ago = hist[pt_clean]
+        # Exponential Penalty: சமீபத்தில் பார்த்த டியூட்டிக்கு மிக கடுமையான தடை!
+        if shifts_ago <= 12:
+            return (15 - shifts_ago) ** 3  # Example: 1 shift ago = 2744 penalty
         else:
-            return 100 - shift_ago
-    return 0
+            return 1 # ரொம்ப நாள் முன்னாடி பார்த்தது என்றால் பிரச்சனை இல்லை (1 penalty)
+    return 0 # இதுவரை பார்க்கவே இல்லை என்றால் 0 penalty (மிகச் சிறந்தது)
 
 if check_password():
     # --- AUTO-LOGOUT LOGIC ---
@@ -134,11 +230,10 @@ if check_password():
         if elapsed_time > timedelta(minutes=TIMEOUT_MINUTES):
             st.session_state["password_correct"] = False
             st.session_state["screenshot_mode"] = False
-            st.warning("⏱️ Session Expired! (5 nimidangalukku mel payanpaduthathathal system lock seyyappattathu)")
+            st.warning("⏱️ Session Expired! (5 நிமிடங்களுக்கு மேல் பயன்படுத்தாததால் சிஸ்டம் லாக் செய்யப்பட்டது)")
             st.rerun()
             
     st.session_state["last_active"] = datetime.now()
-    # ------------------------------
 
     st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
     
@@ -170,7 +265,7 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
-            .stApp { background-color: #f8fafc; }
+            .stApp { background-color: #f8fafc; font-family: sans-serif; }
             [data-testid="stSidebar"] { background-color: #0f172a !important; }
             [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
             .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
@@ -192,7 +287,6 @@ if check_password():
         st.rerun()
     st.sidebar.divider()
     
-    # --- TIME CALCULATION ---
     ist = pytz.timezone('Asia/Kolkata')
     current_time_obj = datetime.now(ist)
     current_time = current_time_obj.strftime("%I:%M %p")
@@ -213,12 +307,12 @@ if check_password():
 
     selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
     
-    # --- NEW: AUTO SHIFT SELECTION LOGIC ---
-    if 4 <= current_hour < 12: # 4 AM to 11:59 AM
+    # --- AUTO SHIFT SELECTION LOGIC ---
+    if 4 <= current_hour < 12: 
         default_shift_index = 0  # A Shift
-    elif 12 <= current_hour < 19: # 12 PM to 6:59 PM
+    elif 12 <= current_hour < 19: 
         default_shift_index = 1  # B Shift
-    else: # 7 PM to 3:59 AM
+    else: 
         default_shift_index = 2  # C Shift
 
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"], index=default_shift_index)
@@ -300,7 +394,12 @@ if check_password():
             point_order = {p: i for i, p in enumerate(regular_duty_points)}
             def sort_key(pt):
                 if pt == "RECEPTION RELIEVER": return 0
-                return point_order.get(pt, 100 + int(pt.split('-')[1]) if "EXTRA" in pt else 200)
+                if "EXTRA" in str(pt):
+                    try:
+                        return 100 + int(str(pt).split('-')[1].split('.')[0])
+                    except:
+                        return 199
+                return point_order.get(pt, 200)
             guard_df["sort_val"] = guard_df["Point"].apply(sort_key)
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
@@ -334,6 +433,7 @@ if check_password():
                 shift_amt = day_of_year % len(available_today)
                 available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
+            # --- THE NEW DEEP FAIRNESS ENGINE ---
             final_assignments = {}
             unassigned_guards = []
             history_map = {}
@@ -358,12 +458,15 @@ if check_password():
                     unassigned_guards.append(guard)
 
             best_temp_assignments = {}
-            least_penalty = float('inf')
+            least_max_penalty = float('inf')  # தனிநபருக்கான அதிகபட்ச தடையை குறைக்கும் லாஜிக்
+            least_total_penalty = float('inf')
             
-            for attempt in range(500):
+            # டேட்டாபேஸை 2000 முறை கலைத்துப்போட்டு, ஒவ்வொருவருக்கும் பெர்ஃபெக்ட் மேட்ச் தேடும்
+            for attempt in range(2000): 
                 temp_assignments = {}
                 temp_available = list(available_today)
-                current_penalty = 0
+                current_total_penalty = 0
+                current_max_penalty = 0
                 
                 random.shuffle(unassigned_guards)
                 
@@ -378,16 +481,23 @@ if check_password():
                         
                         chosen_pt = random.choice(best_points)
                         temp_assignments[g_name] = chosen_pt
-                        current_penalty += best_score
+                        
+                        current_total_penalty += best_score
+                        if best_score > current_max_penalty:
+                            current_max_penalty = best_score
+                            
                         temp_available.remove(chosen_pt)
 
-                if current_penalty < least_penalty:
-                    least_penalty = current_penalty
+                # Deep Check: ஒரு தனிநபருக்கு கூட பழைய டியூட்டி வரக்கூடாது என்பதை உறுதி செய்கிறது
+                if current_max_penalty < least_max_penalty or (current_max_penalty == least_max_penalty and current_total_penalty < least_total_penalty):
+                    least_max_penalty = current_max_penalty
+                    least_total_penalty = current_total_penalty
                     best_temp_assignments = temp_assignments
-                    if least_penalty == 0:
-                        break 
+                    if least_max_penalty == 0:
+                        break # 100% Perfect Match for everyone!
 
             final_assignments.update(best_temp_assignments)
+            # --- ENGINE END ---
 
             rot_data = []
             save_list = []
@@ -436,7 +546,12 @@ if check_password():
             point_order = {p: i for i, p in enumerate(current_duty_points)}
             def sort_key(pt):
                 if pt == "RECEPTION RELIEVER": return 0
-                return point_order.get(pt, 100 + int(pt.split('-')[1]) if "EXTRA" in pt else 200)
+                if "EXTRA" in str(pt):
+                    try:
+                        return 100 + int(str(pt).split('-')[1].split('.')[0])
+                    except:
+                        return 199
+                return point_order.get(pt, 200)
 
             rot_data.sort(key=lambda x: sort_key(x["Point"]))
             df_display = pd.DataFrame(rot_data)
@@ -518,7 +633,7 @@ if check_password():
                     
                     if duplicates:
                         dup_names = ", ".join(set(duplicates))
-                        st.error(f"⚠️ பிழை: '{dup_names}' irandu idangalil ullathu! Oruvarukku sariyaga matrivittu save seyyavum.")
+                        st.error(f"⚠️ பிழை: '{dup_names}' இரண்டு இடங்களில் உள்ளது! ஒருவருக்கு சரியாக மாற்றிவிட்டு சேவ் செய்யவும்.")
                     else:
                         current_db = pd.read_csv(CSV_FILE)
                         mask_keep = ~((current_db["Date"] == date_str_key) & 
@@ -557,6 +672,6 @@ if check_password():
 
     except Exception as e:
         if "HTTP Error 400: Bad Request" in str(e):
-            st.error(f"⚠️ Error: Google Sheet-il '{dynamic_sheet_name}' endra peyaril Tab illai! Sheet-ai saripaarkkavum.")
+            st.error(f"⚠️ Error: Google Sheet-ல் '{dynamic_sheet_name}' என்ற பெயரில் Tab இல்லை! Sheet-ஐ சரிபார்க்கவும்.")
         else:
             st.error(f"System Error: {e}")
