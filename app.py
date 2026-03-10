@@ -27,106 +27,107 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
+        # --- NEW CLEAN MODERN WEB PAGE UI ---
         st.markdown("""
             <style>
-            @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
             
+            /* Clean light background */
             .stApp { 
-                font-family: 'Space Grotesk', sans-serif;
-                background: #020617; 
-                overflow: hidden;
-            }
-            
-            header, [data-testid="stSidebar"], .stDeployButton {visibility: hidden; display: none !important;}
-            
-            .stApp::before {
-                content: '';
-                position: absolute;
-                width: 200%; height: 200%;
-                top: -50%; left: -50%;
+                font-family: 'Inter', sans-serif;
+                background-color: #f1f5f9;
                 background-image: 
-                    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
-                background-size: 40px 40px;
-                transform: rotate(15deg);
-                z-index: -1;
+                    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
+                    radial-gradient(circle at 85% 30%, rgba(15, 23, 42, 0.05), transparent 25%);
             }
             
-            .login-container {
-                display: flex; flex-direction: column; align-items: center; justify-content: center;
-                height: 80vh; margin-top: 10vh; text-align: center;
-                perspective: 1000px;
+            header, [data-testid="stSidebar"], .stDeployButton {display: none !important;}
+            
+            /* Style the center column to act as a Modern Card */
+            [data-testid="stVerticalBlock"] > div > div {
+                display: flex;
+                justify-content: center;
+            }
+            [data-testid="stHorizontalBlock"] {
+                margin-top: 15vh;
+                align-items: center;
+                justify-content: center;
+            }
+            [data-testid="stHorizontalBlock"] > div:nth-child(2) {
+                background: white;
+                padding: 50px 40px 60px 40px;
+                border-radius: 24px;
+                box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05);
+                text-align: center;
+                animation: slideUp 0.6s ease-out forwards;
+                max-width: 450px;
             }
             
-            .holo-card {
-                background: rgba(30, 41, 59, 0.1);
-                backdrop-filter: blur(25px);
-                border: 1px solid rgba(56, 189, 248, 0.15);
+            /* Brand Logo and text styles */
+            .brand-logo {
+                background: linear-gradient(135deg, #0f172a 0%, #3b82f6 100%);
+                width: 72px; height: 72px;
                 border-radius: 20px;
-                padding: 60px 50px;
-                box-shadow: 0 0 50px rgba(56, 189, 248, 0.1), inset 0 0 15px rgba(56, 189, 248, 0.1);
-                animation: floatIn 1.5s ease-out, floatCard 6s ease-in-out infinite;
-                transform-style: preserve-3d;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 34px; color: white;
+                margin: 0 auto 20px auto;
+                box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+                transform: rotate(-5deg);
+                transition: transform 0.3s ease;
+            }
+            .brand-logo:hover {
+                transform: rotate(0deg);
+            }
+            .brand-title {
+                color: #0f172a;
+                font-size: 28px;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+                margin: 0 0 8px 0;
+            }
+            .brand-sub {
+                color: #64748b;
+                font-size: 15px;
+                font-weight: 500;
+                margin: 0 0 35px 0;
             }
             
-            .shield-icon {
-                font-size: 90px;
-                position: relative; margin-bottom: 25px;
-                filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.7));
+            /* Input field styling */
+            div[data-baseweb="input"] > div {
+                background-color: #f8fafc;
+                border: 2px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 6px 10px;
+                transition: all 0.2s ease;
             }
-            .shield-icon::after {
-                content: ''; position: absolute;
-                width: 150px; height: 150px;
-                top: 50%; left: 50%; transform: translate(-50%, -50%);
-                background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, transparent 70%);
-                z-index: -1;
+            div[data-baseweb="input"] > div:focus-within {
+                background-color: #ffffff;
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
             }
-            
-            .portal-title {
-                font-size: 56px; font-weight: 900; letter-spacing: 8px;
-                background: linear-gradient(135deg, #ffffff 10%, #38bdf8 60%, #ffffff 100%);
-                -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                margin: 0; padding-bottom: 5px;
+            input[type="password"] {
+                font-size: 16px; font-weight: 600; color: #0f172a; letter-spacing: 2px; text-align: center;
             }
-            .portal-subtitle {
-                color: #94a3b8; letter-spacing: 10px; font-size: 15px; font-weight: 500;
-                margin-top: 5px; margin-bottom: 40px; text-transform: uppercase;
+            input::placeholder {
+                letter-spacing: normal; font-weight: 400; color: #94a3b8;
             }
             
-            .data-readout {
-                position: absolute; color: rgba(56, 189, 248, 0.2);
-                font-family: monospace; font-size: 10px; letter-spacing: 2px;
-                user-select: none;
-            }
-            .dr-tl {top: 10px; left: 10px;} .dr-tr {top: 10px; right: 10px;}
-            .dr-bl {bottom: 10px; left: 10px;} .dr-br {bottom: 10px; right: 10px;}
-
-            @keyframes floatIn {
-                0% { opacity: 0; transform: translateY(50px) rotateX(-20deg); }
-                100% { opacity: 1; transform: translateY(0) rotateX(0); }
-            }
-            @keyframes floatCard {
-                0%, 100% { transform: translateY(0) rotateX(0deg); }
-                50% { transform: translateY(-10px) rotateX(2deg); }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
             }
             </style>
-            
-            <div class="login-container">
-                <div class="holo-card">
-                    <span class="data-readout dr-tl">SYS.STATUS:OK</span>
-                    <span class="data-readout dr-tr">SEC_LVL.5</span>
-                    <div class="shield-icon">🛡️</div>
-                    <h1 class="portal-title">MATHALAMPARAI</h1>
-                    <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
-                    <span class="data-readout dr-bl">LAT.10.8</span>
-                    <span class="data-readout dr-br">LNG.78.2</span>
-                </div>
-            </div>
         """, unsafe_allow_html=True)
         
-        col1, col2, col3 = st.columns([1, 1, 1])
+        col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
-            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="🔒 ENTER PASSCODE TO ACCESS")
+            st.markdown("""
+                <div class="brand-logo">🛡️</div>
+                <h1 class="brand-title">Mathalamparai</h1>
+                <p class="brand-sub">Executive Duty Portal</p>
+            """, unsafe_allow_html=True)
+            
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter secure passcode...")
         
         return False
     return True
@@ -181,7 +182,6 @@ def get_role_summary(date_str, shift_str):
            ", ".join(final_recep) if final_recep else "N/A", \
            ", ".join(well) if well else "N/A"
 
-# --- DEEP CHECK LOGIC FOR DATABASE ---
 def clean_point_name(p):
     p_str = str(p).upper()
     p_str = re.sub(r'^\d+\.\s*', '', p_str) 
@@ -195,7 +195,6 @@ def get_guard_history(staff_name, current_date):
     df["DateObj"] = pd.to_datetime(df["Date"])
     current_date_obj = pd.to_datetime(current_date)
 
-    # Filtering ONLY past dates to ensure perfect chronological tracking
     mask = (df["Staff Name"] == staff_name) & (df["Role"] == "GUARD") & (df["DateObj"] < current_date_obj)
     past_duties = df[mask].copy()
     past_duties = past_duties.sort_values(by="DateObj", ascending=False)
@@ -214,12 +213,11 @@ def get_penalty(guard_name, point_name, history_map):
     hist = history_map.get(guard_name, {})
     if pt_clean in hist:
         shifts_ago = hist[pt_clean]
-        # Exponential Penalty: சமீபத்தில் பார்த்த டியூட்டிக்கு மிக கடுமையான தடை!
         if shifts_ago <= 12:
-            return (15 - shifts_ago) ** 3  # Example: 1 shift ago = 2744 penalty
+            return (15 - shifts_ago) ** 3  
         else:
-            return 1 # ரொம்ப நாள் முன்னாடி பார்த்தது என்றால் பிரச்சனை இல்லை (1 penalty)
-    return 0 # இதுவரை பார்க்கவே இல்லை என்றால் 0 penalty (மிகச் சிறந்தது)
+            return 1 
+    return 0 
 
 if check_password():
     # --- AUTO-LOGOUT LOGIC ---
@@ -307,13 +305,12 @@ if check_password():
 
     selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
     
-    # --- AUTO SHIFT SELECTION LOGIC ---
     if 4 <= current_hour < 12: 
-        default_shift_index = 0  # A Shift
+        default_shift_index = 0  
     elif 12 <= current_hour < 19: 
-        default_shift_index = 1  # B Shift
+        default_shift_index = 1  
     else: 
-        default_shift_index = 2  # C Shift
+        default_shift_index = 2  
 
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"], index=default_shift_index)
     
@@ -433,7 +430,6 @@ if check_password():
                 shift_amt = day_of_year % len(available_today)
                 available_today = available_today[shift_amt:] + available_today[:shift_amt]
 
-            # --- THE NEW DEEP FAIRNESS ENGINE ---
             final_assignments = {}
             unassigned_guards = []
             history_map = {}
@@ -458,10 +454,9 @@ if check_password():
                     unassigned_guards.append(guard)
 
             best_temp_assignments = {}
-            least_max_penalty = float('inf')  # தனிநபருக்கான அதிகபட்ச தடையை குறைக்கும் லாஜிக்
+            least_max_penalty = float('inf')  
             least_total_penalty = float('inf')
             
-            # டேட்டாபேஸை 2000 முறை கலைத்துப்போட்டு, ஒவ்வொருவருக்கும் பெர்ஃபெக்ட் மேட்ச் தேடும்
             for attempt in range(2000): 
                 temp_assignments = {}
                 temp_available = list(available_today)
@@ -488,16 +483,14 @@ if check_password():
                             
                         temp_available.remove(chosen_pt)
 
-                # Deep Check: ஒரு தனிநபருக்கு கூட பழைய டியூட்டி வரக்கூடாது என்பதை உறுதி செய்கிறது
                 if current_max_penalty < least_max_penalty or (current_max_penalty == least_max_penalty and current_total_penalty < least_total_penalty):
                     least_max_penalty = current_max_penalty
                     least_total_penalty = current_total_penalty
                     best_temp_assignments = temp_assignments
                     if least_max_penalty == 0:
-                        break # 100% Perfect Match for everyone!
+                        break 
 
             final_assignments.update(best_temp_assignments)
-            # --- ENGINE END ---
 
             rot_data = []
             save_list = []
