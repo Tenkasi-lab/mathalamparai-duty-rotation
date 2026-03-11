@@ -7,6 +7,9 @@ import os
 import re
 import random
 
+# --- 0. PAGE CONFIG (Must be first) ---
+st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
+
 # --- 1. CONFIGURATION ---
 CSV_FILE = "duty_database.csv"
 sheet_id = "1-adQfc6NIVLpy50L9GpnH75IiX6IMJ-UwjYsx88rmFk" 
@@ -27,18 +30,14 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        st.set_page_config(page_title="Mathalamparai Login", layout="centered")
-        # --- FRONT PAGE ONLY: PROFESSIONAL FADED SECURITY BACKGROUND ---
+        # --- FRONT PAGE ONLY: SCI-FI HOLOGRAPHIC BLUE UI ---
         st.markdown("""
             <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700;800&display=swap');
             
             .stApp { 
-                font-family: 'Inter', sans-serif;
-                /* Security Team Control Room Background with Dark Faded Overlay */
-                background: linear-gradient(rgba(2, 6, 23, 0.85), rgba(15, 23, 42, 0.95)), 
-                            url('https://images.unsplash.com/photo-1551808525-51a94da548ce?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
-                background-size: cover !important;
+                font-family: 'Rajdhani', sans-serif;
+                background: radial-gradient(circle at center, #0a192f 0%, #020617 100%) !important;
             }
             
             header, [data-testid="stSidebar"], .stDeployButton {display: none !important;}
@@ -46,73 +45,93 @@ def check_password():
             [data-testid="stVerticalBlock"] > div > div { display: flex; justify-content: center; }
             [data-testid="stHorizontalBlock"] { margin-top: 15vh; align-items: center; justify-content: center; }
             
-            .login-card {
-                background: rgba(255, 255, 255, 0.04);
-                backdrop-filter: blur(16px);
-                -webkit-backdrop-filter: blur(16px);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 20px;
-                padding: 40px 30px;
-                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+            .sci-fi-card {
+                background: rgba(2, 12, 27, 0.7);
+                backdrop-filter: blur(10px);
+                border: 2px solid rgba(14, 165, 233, 0.4);
+                border-radius: 15px;
+                padding: 50px 40px;
+                box-shadow: 0 0 30px rgba(14, 165, 233, 0.2), inset 0 0 20px rgba(14, 165, 233, 0.1);
                 text-align: center;
-                animation: fadeIn 0.8s ease-out;
+                animation: pulseGlow 3s infinite alternate;
+                position: relative;
                 width: 100%;
-                max-width: 450px;
+                max-width: 480px;
             }
             
+            /* High-Tech Corner Accents */
+            .sci-fi-card::before, .sci-fi-card::after {
+                content: ''; position: absolute; width: 40px; height: 40px; border-top: 3px solid #0ea5e9;
+            }
+            .sci-fi-card::before { top: -2px; left: -2px; border-left: 3px solid #0ea5e9; border-top-left-radius: 15px; }
+            .sci-fi-card::after { top: -2px; right: -2px; border-right: 3px solid #0ea5e9; border-top-right-radius: 15px; }
+            
+            .sci-fi-card-bottom-left, .sci-fi-card-bottom-right {
+                position: absolute; width: 40px; height: 40px; border-bottom: 3px solid #0ea5e9;
+            }
+            .sci-fi-card-bottom-left { bottom: -2px; left: -2px; border-left: 3px solid #0ea5e9; border-bottom-left-radius: 15px; }
+            .sci-fi-card-bottom-right { bottom: -2px; right: -2px; border-right: 3px solid #0ea5e9; border-bottom-right-radius: 15px; }
+            
             .shield-icon {
-                font-size: 45px;
-                margin-bottom: 15px;
-                filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.5));
+                font-size: 55px;
+                margin-bottom: 10px;
+                filter: drop-shadow(0 0 15px #0ea5e9);
             }
             
             .portal-title {
-                color: #ffffff;
-                font-size: 32px;
+                color: #e0f2fe;
+                font-size: 34px;
                 font-weight: 800;
-                letter-spacing: 2px;
-                margin: 0 0 8px 0;
-                white-space: nowrap; /* Forces text to stay in a single line */
+                letter-spacing: 4px;
+                margin: 0 0 5px 0;
+                text-shadow: 0 0 10px #0ea5e9;
+                white-space: nowrap;
             }
             
             .portal-subtitle {
-                color: #94a3b8;
-                font-size: 13px;
+                color: #38bdf8;
+                font-size: 14px;
                 font-weight: 600;
-                letter-spacing: 4px;
-                margin: 0 0 35px 0;
+                letter-spacing: 5px;
+                margin: 0 0 40px 0;
                 text-transform: uppercase;
             }
             
+            /* Sci-Fi Input Box */
             div[data-baseweb="input"] > div {
-                background-color: rgba(15, 23, 42, 0.7) !important;
-                border: 1px solid rgba(255, 255, 255, 0.2) !important;
-                border-radius: 10px;
-                padding: 4px 8px;
+                background-color: rgba(2, 6, 23, 0.8) !important;
+                border: 1px solid #0ea5e9 !important;
+                border-radius: 4px;
+                padding: 6px 12px;
             }
             div[data-baseweb="input"] > div:focus-within {
-                border-color: #38bdf8 !important;
-                box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
+                box-shadow: 0 0 15px rgba(14, 165, 233, 0.6) !important;
+                background-color: rgba(15, 23, 42, 0.9) !important;
             }
             input[type="password"] {
-                color: white !important; text-align: center; letter-spacing: 4px; font-weight: bold; font-size: 16px;
+                color: #38bdf8 !important; text-align: center; letter-spacing: 5px; font-weight: bold; font-size: 18px;
             }
-            input::placeholder { letter-spacing: 1px; color: #64748b !important; font-weight: normal; font-size: 14px; }
+            input::placeholder { letter-spacing: 2px; color: #475569 !important; font-weight: normal; font-size: 14px; }
             
-            @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes pulseGlow { 
+                from { box-shadow: 0 0 20px rgba(14, 165, 233, 0.1), inset 0 0 10px rgba(14, 165, 233, 0.05); } 
+                to { box-shadow: 0 0 40px rgba(14, 165, 233, 0.3), inset 0 0 20px rgba(14, 165, 233, 0.15); } 
+            }
             </style>
         """, unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.markdown("""
-                <div class="login-card">
+                <div class="sci-fi-card">
+                    <div class="sci-fi-card-bottom-left"></div>
+                    <div class="sci-fi-card-bottom-right"></div>
                     <div class="shield-icon">🛡️</div>
                     <h1 class="portal-title">MATHALAMPARAI</h1>
                     <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
             """, unsafe_allow_html=True)
             
-            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter Password")
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="SYSTEM LOCKED")
             
             st.markdown("</div>", unsafe_allow_html=True)
         
@@ -218,8 +237,6 @@ if check_password():
             st.rerun()
             
     st.session_state["last_active"] = datetime.now()
-
-    st.set_page_config(page_title="Mathalamparai Executive", layout="wide")
     
     if st.session_state["screenshot_mode"]:
         st.markdown("""
@@ -246,7 +263,7 @@ if check_password():
                 st.session_state["screenshot_mode"] = False
                 st.rerun()
 
-    # --- INSIDE DASHBOARD ONLY: CLEAN LIGHT UI ---
+    # --- INSIDE DASHBOARD ONLY: OLD CLEAN LIGHT UI ---
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
