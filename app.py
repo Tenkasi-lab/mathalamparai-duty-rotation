@@ -28,14 +28,13 @@ def check_password():
 
     if not st.session_state["password_correct"]:
         st.set_page_config(page_title="Mathalamparai Login", layout="centered")
-        # --- PROFESSIONAL FADED SECURITY BACKGROUND UI ---
+        # --- FRONT PAGE ONLY: PROFESSIONAL FADED SECURITY BACKGROUND ---
         st.markdown("""
             <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
             
             .stApp { 
                 font-family: 'Inter', sans-serif;
-                /* Background image of a security/ops team with a dark faded overlay */
                 background: linear-gradient(rgba(2, 6, 23, 0.85), rgba(15, 23, 42, 0.95)), 
                             url('https://images.unsplash.com/photo-1551808525-51a94da548ce?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
                 background-size: cover !important;
@@ -82,7 +81,6 @@ def check_password():
                 text-transform: uppercase;
             }
             
-            /* Input styling */
             div[data-baseweb="input"] > div {
                 background-color: rgba(15, 23, 42, 0.6) !important;
                 border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -224,15 +222,15 @@ if check_password():
             <style>
             [data-testid="stSidebar"] {display: none;}
             header {display: none;}
-            .stApp {background-color: #f8fafc;}
+            .stApp {background-color: #f8fafc !important;}
             .roster-card { background: white; border: 2px solid #0f172a; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: hidden;}
             .roster-header { background: #0f172a; color: white; text-align: center; padding: 15px; font-weight: 800; font-size: 18px;}
             .roster-body { padding: 20px;}
             .info-text { font-size: 15px; line-height: 1.6; border-bottom: 2px dashed #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;}
             .roster-table { width: 100%; border-collapse: collapse; font-size: 14px;}
-            .roster-table th, .roster-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left;}
-            .roster-table th { background: #f1f5f9; font-weight: bold; color: #334155;}
-            .vacant { color: #dc2626; font-weight: bold; }
+            .roster-table th, .roster-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; color: #0f172a !important;}
+            .roster-table th { background: #f1f5f9; font-weight: bold; color: #334155 !important;}
+            .vacant { color: #dc2626 !important; font-weight: bold; }
             .extra { background-color: #f8fafc; font-style: italic; }
             .footer-card { margin-top: 15px; font-size: 13px; font-weight: bold;}
             </style>
@@ -244,27 +242,23 @@ if check_password():
                 st.session_state["screenshot_mode"] = False
                 st.rerun()
 
+    # --- INSIDE DASHBOARD ONLY: CLEAN LIGHT UI ---
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
-            /* Dashboard Dark Theme Background */
-            .stApp { 
-                background: linear-gradient(rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.95)), 
-                            url('https://images.unsplash.com/photo-1551808525-51a94da548ce?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
-                background-size: cover !important;
-                font-family: sans-serif; 
-            }
-            [data-testid="stSidebar"] { background-color: rgba(2, 6, 23, 0.8) !important; backdrop-filter: blur(10px); }
+            .stApp { background: #f8fafc !important; font-family: sans-serif; }
+            [data-testid="stSidebar"] { background-color: #0f172a !important; }
             [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
-            .main-header { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
-            .shift-banner { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56,189,248,0.3); padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+            .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
+            .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
+            .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
             .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
-            .stat-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid rgba(255,255,255,0.1); color: white;}
-            .stat-card small { color: #94a3b8; }
-            table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
-            th, td { border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left; color: white !important;}
-            th { background-color: rgba(0,0,0,0.3); color: #38bdf8 !important; text-transform: uppercase; font-size: 13px;}
-            [data-testid="stMarkdownContainer"] p { color: white !important; }
+            .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; color: #0f172a;}
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; color: #0f172a !important; }
+            th { background-color: #f2f2f2; color: #0f172a !important; }
             </style>
         """, unsafe_allow_html=True)
 
@@ -307,7 +301,7 @@ if check_password():
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
     if not st.session_state["screenshot_mode"]:
-        st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
@@ -575,7 +569,7 @@ if check_password():
             st.markdown(card_html, unsafe_allow_html=True)
             
         else:
-            st.markdown(f'<div class="shift-banner">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
             st.markdown(f"""<div class="stat-row">
                 <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
@@ -647,9 +641,9 @@ if check_password():
                         st.session_state["screenshot_mode"] = True
                         st.rerun()
             
-            st.markdown(f"""<div class="stat-row" style='background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
-                <span><b style='color:#38bdf8;'>🏖️ WEEK OFF:</b> <span style='color:#ffffff; font-weight:bold;'>{wo_names}</span></span>
-                <span><b style='color:#38bdf8;'>🏥 ON LEAVE:</b> <span style='color:#ffffff; font-weight:bold;'>{ol_names}</span></span>
+            st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
+                <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
+                <span><b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span></span>
             </div>""", unsafe_allow_html=True)
 
     except Exception as e:
