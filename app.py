@@ -27,94 +27,92 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # --- NEW PREMIUM GLASSMORPHISM UI ---
+        st.set_page_config(page_title="Mathalamparai Login", layout="centered")
+        # --- PROFESSIONAL FADED SECURITY BACKGROUND UI ---
         st.markdown("""
             <style>
-            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
             
-            /* Deep ambient background */
             .stApp { 
-                font-family: 'Outfit', sans-serif;
-                background-color: #090e17;
-                background-image: 
-                    radial-gradient(circle at 15% 30%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
-                    radial-gradient(circle at 85% 70%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
-                overflow: hidden;
+                font-family: 'Inter', sans-serif;
+                /* Background image of a security/ops team with a dark faded overlay */
+                background: linear-gradient(rgba(2, 6, 23, 0.85), rgba(15, 23, 42, 0.95)), 
+                            url('https://images.unsplash.com/photo-1551808525-51a94da548ce?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
+                background-size: cover !important;
             }
             
             header, [data-testid="stSidebar"], .stDeployButton {display: none !important;}
             
-            /* Ambient glowing orbs */
-            .orb-1 { position: absolute; top: -10%; left: 10%; width: 500px; height: 500px; background: rgba(56, 189, 248, 0.15); border-radius: 50%; filter: blur(100px); z-index: 0; animation: float1 10s infinite alternate ease-in-out; }
-            .orb-2 { position: absolute; bottom: -10%; right: 10%; width: 400px; height: 400px; background: rgba(139, 92, 246, 0.15); border-radius: 50%; filter: blur(100px); z-index: 0; animation: float2 12s infinite alternate ease-in-out; }
+            [data-testid="stVerticalBlock"] > div > div { display: flex; justify-content: center; }
+            [data-testid="stHorizontalBlock"] { margin-top: 18vh; align-items: center; justify-content: center; }
             
-            /* Center elements */
-            [data-testid="stVerticalBlock"] > div > div { display: flex; justify-content: center; z-index: 10; }
-            [data-testid="stHorizontalBlock"] { margin-top: 15vh; align-items: center; justify-content: center; z-index: 10; }
-            
-            /* The Frosted Glass Card */
-            [data-testid="stHorizontalBlock"] > div:nth-child(2) {
-                background: rgba(255, 255, 255, 0.02);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 28px;
+            .login-card {
+                background: rgba(255, 255, 255, 0.03);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 20px;
                 padding: 50px 40px;
-                box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
                 text-align: center;
-                animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                max-width: 420px;
+                animation: fadeIn 0.8s ease-out;
+                max-width: 400px;
             }
             
-            /* Logo & Text styling */
-            .icon-wrapper {
-                width: 80px; height: 80px; margin: 0 auto 24px auto;
-                background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
-                border-radius: 22px;
-                display: flex; align-items: center; justify-content: center;
-                font-size: 38px; color: white;
-                box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.5);
-                border: 1px solid rgba(255,255,255,0.3);
+            .shield-icon {
+                font-size: 50px;
+                margin-bottom: 10px;
+                filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.5));
             }
-            .brand-title { color: white; font-size: 30px; font-weight: 800; letter-spacing: 1px; margin: 0 0 6px 0; }
-            .brand-sub { color: #94a3b8; font-size: 13px; font-weight: 500; letter-spacing: 3px; margin: 0 0 40px 0; text-transform: uppercase; }
             
-            /* Elegant Dark Input */
+            .portal-title {
+                color: #ffffff;
+                font-size: 28px;
+                font-weight: 700;
+                letter-spacing: 2px;
+                margin: 0 0 5px 0;
+            }
+            
+            .portal-subtitle {
+                color: #94a3b8;
+                font-size: 12px;
+                font-weight: 500;
+                letter-spacing: 3px;
+                margin: 0 0 35px 0;
+                text-transform: uppercase;
+            }
+            
+            /* Input styling */
             div[data-baseweb="input"] > div {
-                background-color: rgba(15, 23, 42, 0.5) !important;
-                border: 1px solid rgba(255,255,255,0.1) !important;
-                border-radius: 14px;
-                padding: 6px 12px;
-                transition: all 0.3s ease;
+                background-color: rgba(15, 23, 42, 0.6) !important;
+                border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                border-radius: 8px;
             }
             div[data-baseweb="input"] > div:focus-within {
-                background-color: rgba(15, 23, 42, 0.8) !important;
                 border-color: #38bdf8 !important;
-                box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15) !important;
+                box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
             }
             input[type="password"] {
-                font-size: 16px; font-weight: 600; color: white !important; letter-spacing: 4px; text-align: center;
+                color: white !important; text-align: center; letter-spacing: 3px; font-weight: bold;
             }
-            input::placeholder { letter-spacing: normal; font-weight: 400; color: #475569 !important; }
+            input::placeholder { letter-spacing: 1px; color: #475569 !important; font-weight: normal; }
             
-            @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes float1 { 0% { transform: translateY(0px) translateX(0px); } 100% { transform: translateY(-30px) translateX(30px); } }
-            @keyframes float2 { 0% { transform: translateY(0px) translateX(0px); } 100% { transform: translateY(30px) translateX(-30px); } }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
             </style>
-            
-            <div class="orb-1"></div>
-            <div class="orb-2"></div>
         """, unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
             st.markdown("""
-                <div class="icon-wrapper">🛡️</div>
-                <h1 class="brand-title">MATHALAMPARAI</h1>
-                <p class="brand-sub">Executive Duty Portal</p>
+                <div class="login-card">
+                    <div class="shield-icon">🛡️</div>
+                    <h1 class="portal-title">MATHALAMPARAI</h1>
+                    <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
             """, unsafe_allow_html=True)
             
-            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter Passcode")
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter Password")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
         
         return False
     return True
@@ -249,19 +247,24 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
-            .stApp { background-color: #f8fafc; font-family: sans-serif; }
-            [data-testid="stSidebar"] { background-color: #0f172a !important; }
+            /* Dashboard Dark Theme Background */
+            .stApp { 
+                background: linear-gradient(rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.95)), 
+                            url('https://images.unsplash.com/photo-1551808525-51a94da548ce?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
+                background-size: cover !important;
+                font-family: sans-serif; 
+            }
+            [data-testid="stSidebar"] { background-color: rgba(2, 6, 23, 0.8) !important; backdrop-filter: blur(10px); }
             [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
-            .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-            .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
-            .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
-            .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
+            .main-header { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
+            .shift-banner { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56,189,248,0.3); padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
             .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
-            .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
+            .stat-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid rgba(255,255,255,0.1); color: white;}
+            .stat-card small { color: #94a3b8; }
+            table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
+            th, td { border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left; color: white !important;}
+            th { background-color: rgba(0,0,0,0.3); color: #38bdf8 !important; text-transform: uppercase; font-size: 13px;}
+            [data-testid="stMarkdownContainer"] p { color: white !important; }
             </style>
         """, unsafe_allow_html=True)
 
@@ -304,7 +307,7 @@ if check_password():
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
     if not st.session_state["screenshot_mode"]:
-        st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
@@ -572,7 +575,7 @@ if check_password():
             st.markdown(card_html, unsafe_allow_html=True)
             
         else:
-            st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="shift-banner">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
             st.markdown(f"""<div class="stat-row">
                 <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
@@ -644,9 +647,9 @@ if check_password():
                         st.session_state["screenshot_mode"] = True
                         st.rerun()
             
-            st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
-                <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
-                <span><b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span></span>
+            st.markdown(f"""<div class="stat-row" style='background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
+                <span><b style='color:#38bdf8;'>🏖️ WEEK OFF:</b> <span style='color:#ffffff; font-weight:bold;'>{wo_names}</span></span>
+                <span><b style='color:#38bdf8;'>🏥 ON LEAVE:</b> <span style='color:#ffffff; font-weight:bold;'>{ol_names}</span></span>
             </div>""", unsafe_allow_html=True)
 
     except Exception as e:
