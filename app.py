@@ -31,10 +31,11 @@ def check_password():
         # --- FRONT PAGE ONLY: PROFESSIONAL FADED SECURITY BACKGROUND ---
         st.markdown("""
             <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
             
             .stApp { 
                 font-family: 'Inter', sans-serif;
+                /* Security Team Control Room Background with Dark Faded Overlay */
                 background: linear-gradient(rgba(2, 6, 23, 0.85), rgba(15, 23, 42, 0.95)), 
                             url('https://images.unsplash.com/photo-1551808525-51a94da548ce?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
                 background-size: cover !important;
@@ -43,63 +44,66 @@ def check_password():
             header, [data-testid="stSidebar"], .stDeployButton {display: none !important;}
             
             [data-testid="stVerticalBlock"] > div > div { display: flex; justify-content: center; }
-            [data-testid="stHorizontalBlock"] { margin-top: 18vh; align-items: center; justify-content: center; }
+            [data-testid="stHorizontalBlock"] { margin-top: 15vh; align-items: center; justify-content: center; }
             
             .login-card {
-                background: rgba(255, 255, 255, 0.03);
+                background: rgba(255, 255, 255, 0.04);
                 backdrop-filter: blur(16px);
                 -webkit-backdrop-filter: blur(16px);
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 20px;
-                padding: 50px 40px;
-                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+                padding: 40px 30px;
+                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
                 text-align: center;
                 animation: fadeIn 0.8s ease-out;
-                max-width: 400px;
+                width: 100%;
+                max-width: 450px;
             }
             
             .shield-icon {
-                font-size: 50px;
-                margin-bottom: 10px;
+                font-size: 45px;
+                margin-bottom: 15px;
                 filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.5));
             }
             
             .portal-title {
                 color: #ffffff;
-                font-size: 28px;
-                font-weight: 700;
+                font-size: 32px;
+                font-weight: 800;
                 letter-spacing: 2px;
-                margin: 0 0 5px 0;
+                margin: 0 0 8px 0;
+                white-space: nowrap; /* Forces text to stay in a single line */
             }
             
             .portal-subtitle {
                 color: #94a3b8;
-                font-size: 12px;
-                font-weight: 500;
-                letter-spacing: 3px;
+                font-size: 13px;
+                font-weight: 600;
+                letter-spacing: 4px;
                 margin: 0 0 35px 0;
                 text-transform: uppercase;
             }
             
             div[data-baseweb="input"] > div {
-                background-color: rgba(15, 23, 42, 0.6) !important;
-                border: 1px solid rgba(255, 255, 255, 0.15) !important;
-                border-radius: 8px;
+                background-color: rgba(15, 23, 42, 0.7) !important;
+                border: 1px solid rgba(255, 255, 255, 0.2) !important;
+                border-radius: 10px;
+                padding: 4px 8px;
             }
             div[data-baseweb="input"] > div:focus-within {
                 border-color: #38bdf8 !important;
-                box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+                box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
             }
             input[type="password"] {
-                color: white !important; text-align: center; letter-spacing: 3px; font-weight: bold;
+                color: white !important; text-align: center; letter-spacing: 4px; font-weight: bold; font-size: 16px;
             }
-            input::placeholder { letter-spacing: 1px; color: #475569 !important; font-weight: normal; }
+            input::placeholder { letter-spacing: 1px; color: #64748b !important; font-weight: normal; font-size: 14px; }
             
             @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
             </style>
         """, unsafe_allow_html=True)
         
-        col1, col2, col3 = st.columns([1, 1.2, 1])
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.markdown("""
                 <div class="login-card">
@@ -249,16 +253,15 @@ if check_password():
             .stApp { background: #f8fafc !important; font-family: sans-serif; }
             [data-testid="stSidebar"] { background-color: #0f172a !important; }
             [data-testid="stSidebar"] label { color: #ffffff !important; font-weight: bold !important; }
-            .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-            .shift-banner { padding: 15px; border-radius: 12px; color: white; text-align: center; font-size: 24px; font-weight: 800; margin: 15px 0; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            .a-shift { background: linear-gradient(90deg, #be123c, #fb7185); }
-            .b-shift { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
-            .c-shift { background: linear-gradient(90deg, #047857, #34d399); }
+            .main-header { background: #0f172a; padding: 20px; border-radius: 0 0 20px 20px; color: #f1f5f9; text-align: center; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
+            .shift-banner { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56,189,248,0.3); padding: 15px; border-radius: 12px; color: #0f172a; text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
             .stat-row { display: flex; gap: 10px; margin-bottom: 15px; }
-            .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; color: #0f172a;}
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; color: #0f172a !important; }
-            th { background-color: #f2f2f2; color: #0f172a !important; }
+            .stat-card { background: white; padding: 15px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #e2e8f0; color: #0f172a; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+            .stat-card small { color: #64748b; font-weight: bold;}
+            table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+            th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; color: #0f172a !important;}
+            th { background-color: #f1f5f9; color: #334155 !important; text-transform: uppercase; font-size: 13px;}
+            [data-testid="stMarkdownContainer"] p { color: #0f172a !important; }
             </style>
         """, unsafe_allow_html=True)
 
@@ -301,7 +304,7 @@ if check_password():
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
     if not st.session_state["screenshot_mode"]:
-        st.markdown(f"<div class='main-header'><div>🛡️ PERMANENT DUTY SYSTEM</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
@@ -569,7 +572,7 @@ if check_password():
             st.markdown(card_html, unsafe_allow_html=True)
             
         else:
-            st.markdown(f'<div class="shift-banner {target_shift[0].lower()}-shift">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="shift-banner">📅 {target_shift} - {selected_date.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
             
             st.markdown(f"""<div class="stat-row">
                 <div class="stat-card"><small>SUPERVISOR</small><br><b>{sups_text}</b></div>
@@ -641,9 +644,9 @@ if check_password():
                         st.session_state["screenshot_mode"] = True
                         st.rerun()
             
-            st.markdown(f"""<div class="footer-info" style='background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
-                <span><b style='color:#1e3a8a;'>🏖️ WEEK OFF:</b> <span style='color:#dc2626; font-weight:bold;'>{wo_names}</span></span>
-                <span><b style='color:#1e3a8a;'>🏥 ON LEAVE:</b> <span style='color:#dc2626; font-weight:bold;'>{ol_names}</span></span>
+            st.markdown(f"""<div class="stat-row" style='background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px;'>
+                <span><b style='color:#be123c;'>🏖️ WEEK OFF:</b> <span style='color:#0f172a; font-weight:bold;'>{wo_names}</span></span>
+                <span><b style='color:#0369a1;'>🏥 ON LEAVE:</b> <span style='color:#0f172a; font-weight:bold;'>{ol_names}</span></span>
             </div>""", unsafe_allow_html=True)
 
     except Exception as e:
