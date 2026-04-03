@@ -263,7 +263,7 @@ if check_password():
                 st.session_state["screenshot_mode"] = False
                 st.rerun()
 
-    # --- INSIDE DASHBOARD ONLY: OLD CLEAN LIGHT UI ---
+    # --- INSIDE DASHBOARD ONLY: CLEAN LIGHT UI ---
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
@@ -323,9 +323,11 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
-    receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "MUTHUVADIVU", "SUBHASHINI", "MERLIN NIRMALA", "PETCHIYAMMAL"]
-    wellness_specialists = ["BALASUBRAMANIAN", "PONMARI", "POULSON"]
-    supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "RANJITH KUMAR"]
+    # --- BUG FIX: ADDED MULTIPLE SPELLING VARIATIONS TO POOLS ---
+    receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "SATHYAJOTHY", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL"]
+    wellness_specialists = ["BALASUBRAMANIAN", "BALA SUBRAMANIAN", "PONMARI", "POULSON"]
+    supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "DHILIPMOHAN", "RANJITH KUMAR", "RANJITHKUMAR"]
+    
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     dynamic_sheet_name = selected_date.strftime("%B-%Y").upper()
@@ -372,8 +374,9 @@ if check_password():
         db_guards_names = shift_data[shift_data["Role"] == "GUARD"]["Staff Name"].tolist()
         db_guards_real = [g for g in db_guards_names if g != "VACANT"]
         
-        specialist_present = next((s for s in staff_on_duty if any(w in s['name'] for w in wellness_specialists)), None)
-        regular_recep_present = [s for s in staff_on_duty if any(r in s['name'] for r in receptionists_pool)]
+        # Space-proof matching
+        specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
+        regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
         guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
         sheet_guard_names = [g['name'] for g in guards_pool]
 
