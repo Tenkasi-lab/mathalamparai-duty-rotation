@@ -30,7 +30,6 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # --- FRONT PAGE ONLY: SCI-FI HOLOGRAPHIC BLUE UI ---
         st.markdown("""
             <style>
             @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700;800&display=swap');
@@ -59,7 +58,6 @@ def check_password():
                 max-width: 480px;
             }
             
-            /* High-Tech Corner Accents */
             .sci-fi-card::before, .sci-fi-card::after {
                 content: ''; position: absolute; width: 40px; height: 40px; border-top: 3px solid #0ea5e9;
             }
@@ -97,7 +95,6 @@ def check_password():
                 text-transform: uppercase;
             }
             
-            /* Sci-Fi Input Box */
             div[data-baseweb="input"] > div {
                 background-color: rgba(2, 6, 23, 0.8) !important;
                 border: 1px solid #0ea5e9 !important;
@@ -198,32 +195,20 @@ def get_guard_history(staff_name, current_date):
     df = pd.read_csv(CSV_FILE)
     if "Role" not in df.columns: return {}
 
-    df["DateObj"] = pd.to_datetime(df["Date"])
-    current_date_obj = pd.to_datetime(current_date)
+    df["DateObj"] = pd.to_datetime(df["Date"], format='%Y-%m-%d', errors='coerce')
+    current_date_obj = pd.to_datetime(current_date, format='%Y-%m-%d')
 
     mask = (df["Staff Name"] == staff_name) & (df["Role"] == "GUARD") & (df["DateObj"] < current_date_obj)
     past_duties = df[mask].copy()
-    past_duties = past_duties.sort_values(by="DateObj", ascending=False)
     
     history = {}
-    shift_count = 1
-    for pt in past_duties["Point"]:
-        pt_clean = clean_point_name(pt)
-        if pt_clean not in history:
-            history[pt_clean] = shift_count
-        shift_count += 1
+    for _, row in past_duties.iterrows():
+        if pd.notna(row["DateObj"]):
+            pt_clean = clean_point_name(row["Point"])
+            days_ago = (current_date_obj - row["DateObj"]).days
+            if pt_clean not in history or days_ago < history[pt_clean]:
+                history[pt_clean] = days_ago
     return history
-
-def get_penalty(guard_name, point_name, history_map):
-    pt_clean = clean_point_name(point_name)
-    hist = history_map.get(guard_name, {})
-    if pt_clean in hist:
-        shifts_ago = hist[pt_clean]
-        if shifts_ago <= 12:
-            return (15 - shifts_ago) ** 3  
-        else:
-            return 1 
-    return 0 
 
 if check_password():
     TIMEOUT_MINUTES = 5 
@@ -323,7 +308,6 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
-    # --- BUG FIX: ADDED MULTIPLE SPELLING VARIATIONS TO POOLS ---
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "SATHYAJOTHY", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "BALA SUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "DHILIPMOHAN", "RANJITH KUMAR", "RANJITHKUMAR"]
@@ -374,7 +358,6 @@ if check_password():
         db_guards_names = shift_data[shift_data["Role"] == "GUARD"]["Staff Name"].tolist()
         db_guards_real = [g for g in db_guards_names if g != "VACANT"]
         
-        # Space-proof matching
         specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
         regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
         guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
@@ -459,44 +442,64 @@ if check_password():
                 else:
                     unassigned_guards.append(guard)
 
-            best_temp_assignments = {}
-            least_max_penalty = float('inf')  
-            least_total_penalty = float('inf')
-            
-            for attempt in range(2000): 
-                temp_assignments = {}
-                temp_available = list(available_today)
-                current_total_penalty = 0
-                current_max_penalty = 0
-                
-                random.shuffle(unassigned_guards)
-                
-                for guard in unassigned_guards:
-                    g_name = guard['name']
-                    
-                    temp_available.sort(key=lambda p: get_penalty(g_name, p, history_map))
-                    
-                    if temp_available:
-                        best_score = get_penalty(g_name, temp_available[0], history_map)
-                        best_points = [p for p in temp_available if get_penalty(g_name, p, history_map) == best_score]
+            # --- POINT-CENTRIC STRICT BACKTRACKING ENGINE ---
+            if unassigned_guards:
+                def assign_point_centric(guards_list, pts_list, target_ban=5):
+                    # Try with strict 5-day ban. If mathematically impossible, drop to 4, 3, etc. to prevent crash.
+                    for current_ban in range(target_ban, -1, -1):
                         
-                        chosen_pt = random.choice(best_points)
-                        temp_assignments[g_name] = chosen_pt
-                        
-                        current_total_penalty += best_score
-                        if best_score > current_max_penalty:
-                            current_max_penalty = best_score
+                        def backtrack(rem_pts, rem_guards):
+                            if not rem_pts or not rem_guards:
+                                return {}
+                                
+                            curr_pt = rem_pts[0]
                             
-                        temp_available.remove(chosen_pt)
+                            # Find all guards who haven't done THIS point in 'current_ban' days
+                            eligible_guards = []
+                            for g in rem_guards:
+                                gn = g['name']
+                                days_ago = history_map.get(gn, {}).get(clean_point_name(curr_pt), 999)
+                                if days_ago > current_ban:
+                                    eligible_guards.append((g, days_ago))
+                                    
+                            if not eligible_guards:
+                                return None # Dead end, backtrack
+                                
+                            # Sort guards: Priority to those who did it longest ago
+                            eligible_guards.sort(key=lambda x: x[1], reverse=True)
+                            
+                            # Pick top candidates and shuffle slightly so patterns don't repeat exactly
+                            top_candidates = [eg[0] for eg in eligible_guards[:3]]
+                            random.shuffle(top_candidates)
+                            
+                            for chosen_g in top_candidates:
+                                next_pts = rem_pts[1:]
+                                next_guards = [g for g in rem_guards if g['name'] != chosen_g['name']]
+                                
+                                res = backtrack(next_pts, next_guards)
+                                if res is not None:
+                                    res[chosen_g['name']] = curr_pt # Assignment is valid
+                                    return res
+                                    
+                            return None 
+                            
+                        shuffled_pts = list(pts_list)
+                        random.shuffle(shuffled_pts)
+                        
+                        solution = backtrack(shuffled_pts, guards_list)
+                        if solution is not None:
+                            return solution
+                    
+                    # Absolute emergency fallback 
+                    emergency = {}
+                    for i, g in enumerate(guards_list):
+                        if i < len(pts_list):
+                            emergency[g['name']] = pts_list[i]
+                    return emergency
 
-                if current_max_penalty < least_max_penalty or (current_max_penalty == least_max_penalty and current_total_penalty < least_total_penalty):
-                    least_max_penalty = current_max_penalty
-                    least_total_penalty = current_total_penalty
-                    best_temp_assignments = temp_assignments
-                    if least_max_penalty == 0:
-                        break 
-
-            final_assignments.update(best_temp_assignments)
+                strict_solution = assign_point_centric(unassigned_guards, available_today, target_ban=5)
+                final_assignments.update(strict_solution)
+            # --- END OF POINT-CENTRIC ENGINE ---
 
             rot_data = []
             save_list = []
