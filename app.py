@@ -30,29 +30,26 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # --- FRONT PAGE ONLY: ANIMATED SCI-FI LOGIN ---
         st.markdown("""
             <style>
             @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700;800&display=swap');
             
             .stApp { 
                 font-family: 'Rajdhani', sans-serif;
-                background: linear-gradient(rgba(4, 9, 20, 0.85), rgba(4, 9, 20, 0.95)), 
-                            url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
-                background-size: cover !important;
+                background: radial-gradient(circle at center, #0a192f 0%, #020617 100%) !important;
             }
             
             header, [data-testid="stSidebar"], .stDeployButton {display: none !important;}
             
             [data-testid="stVerticalBlock"] > div > div { display: flex; justify-content: center; }
-            [data-testid="stHorizontalBlock"] { margin-top: 10vh; align-items: center; justify-content: center; }
+            [data-testid="stHorizontalBlock"] { margin-top: 15vh; align-items: center; justify-content: center; }
             
             .sci-fi-card {
                 background: rgba(2, 12, 27, 0.7);
                 backdrop-filter: blur(10px);
                 border: 2px solid rgba(14, 165, 233, 0.4);
                 border-radius: 15px;
-                padding: 40px;
+                padding: 50px 40px;
                 box-shadow: 0 0 30px rgba(14, 165, 233, 0.2), inset 0 0 20px rgba(14, 165, 233, 0.1);
                 text-align: center;
                 animation: pulseGlow 3s infinite alternate;
@@ -61,51 +58,55 @@ def check_password():
                 max-width: 480px;
             }
             
-            .sci-fi-card::before, .sci-fi-card::after { content: ''; position: absolute; width: 40px; height: 40px; border-top: 3px solid #0ea5e9; }
+            .sci-fi-card::before, .sci-fi-card::after {
+                content: ''; position: absolute; width: 40px; height: 40px; border-top: 3px solid #0ea5e9;
+            }
             .sci-fi-card::before { top: -2px; left: -2px; border-left: 3px solid #0ea5e9; border-top-left-radius: 15px; }
             .sci-fi-card::after { top: -2px; right: -2px; border-right: 3px solid #0ea5e9; border-top-right-radius: 15px; }
             
-            .sci-fi-card-bottom-left, .sci-fi-card-bottom-right { position: absolute; width: 40px; height: 40px; border-bottom: 3px solid #0ea5e9; }
+            .sci-fi-card-bottom-left, .sci-fi-card-bottom-right {
+                position: absolute; width: 40px; height: 40px; border-bottom: 3px solid #0ea5e9;
+            }
             .sci-fi-card-bottom-left { bottom: -2px; left: -2px; border-left: 3px solid #0ea5e9; border-bottom-left-radius: 15px; }
             .sci-fi-card-bottom-right { bottom: -2px; right: -2px; border-right: 3px solid #0ea5e9; border-bottom-right-radius: 15px; }
             
-            .shield-icon { font-size: 55px; margin-bottom: 10px; filter: drop-shadow(0 0 15px #0ea5e9); }
-            
-            .portal-title { color: #e0f2fe; font-size: 34px; font-weight: 800; letter-spacing: 4px; margin: 0 0 5px 0; text-shadow: 0 0 10px #0ea5e9; white-space: nowrap; }
-            
-            .portal-subtitle { color: #38bdf8; font-size: 14px; font-weight: 600; letter-spacing: 5px; margin: 0 0 20px 0; text-transform: uppercase; }
-            
-            /* --- ANIMATED POINTING ARROW --- */
-            .target-container { margin-top: 15px; margin-bottom: -15px; position: relative; z-index: 50; }
-            .target-text { color: #38bdf8; font-size: 12px; letter-spacing: 2px; font-weight: bold; animation: blinkText 1.5s infinite; }
-            .animated-arrow { color: #0ea5e9; font-size: 30px; text-shadow: 0 0 15px #0ea5e9; animation: bouncePoint 1s infinite; margin-top: 5px; }
-            
-            @keyframes bouncePoint {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(15px); }
-            }
-            @keyframes blinkText {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.3; }
+            .shield-icon {
+                font-size: 55px;
+                margin-bottom: 10px;
+                filter: drop-shadow(0 0 15px #0ea5e9);
             }
             
-            /* Sci-Fi Input Box with Scanner effect */
+            .portal-title {
+                color: #e0f2fe;
+                font-size: 34px;
+                font-weight: 800;
+                letter-spacing: 4px;
+                margin: 0 0 5px 0;
+                text-shadow: 0 0 10px #0ea5e9;
+                white-space: nowrap;
+            }
+            
+            .portal-subtitle {
+                color: #38bdf8;
+                font-size: 14px;
+                font-weight: 600;
+                letter-spacing: 5px;
+                margin: 0 0 40px 0;
+                text-transform: uppercase;
+            }
+            
             div[data-baseweb="input"] > div {
                 background-color: rgba(2, 6, 23, 0.8) !important;
-                border: 2px solid #0ea5e9 !important;
-                border-radius: 8px;
-                padding: 10px 12px;
-                position: relative;
-                overflow: hidden;
+                border: 1px solid #0ea5e9 !important;
+                border-radius: 4px;
+                padding: 6px 12px;
             }
-            
             div[data-baseweb="input"] > div:focus-within {
-                box-shadow: 0 0 25px rgba(14, 165, 233, 0.8) !important;
+                box-shadow: 0 0 15px rgba(14, 165, 233, 0.6) !important;
                 background-color: rgba(15, 23, 42, 0.9) !important;
             }
-            
             input[type="password"] {
-                color: #38bdf8 !important; text-align: center; letter-spacing: 5px; font-weight: bold; font-size: 20px; z-index: 10;
+                color: #38bdf8 !important; text-align: center; letter-spacing: 5px; font-weight: bold; font-size: 18px;
             }
             input::placeholder { letter-spacing: 2px; color: #475569 !important; font-weight: normal; font-size: 14px; }
             
@@ -116,7 +117,7 @@ def check_password():
             </style>
         """, unsafe_allow_html=True)
         
-        col1, col2, col3 = st.columns([1, 3, 1])
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.markdown("""
                 <div class="sci-fi-card">
@@ -125,14 +126,9 @@ def check_password():
                     <div class="shield-icon">🛡️</div>
                     <h1 class="portal-title">MATHALAMPARAI</h1>
                     <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
-                    
-                    <div class="target-container">
-                        <div class="target-text">AWAITING SECURE INPUT</div>
-                        <div class="animated-arrow">▼</div>
-                    </div>
             """, unsafe_allow_html=True)
             
-            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="ENTER PASSCODE")
+            st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="SYSTEM LOCKED")
             
             st.markdown("</div>", unsafe_allow_html=True)
         
@@ -446,15 +442,19 @@ if check_password():
                 else:
                     unassigned_guards.append(guard)
 
-            # --- STRICT BACKTRACKING (100% FAULT-PROOF) ---
+            # --- POINT-CENTRIC STRICT BACKTRACKING ENGINE ---
             if unassigned_guards:
                 def assign_point_centric(guards_list, pts_list, target_ban=5):
+                    # Try with strict 5-day ban. If mathematically impossible, drop to 4, 3, etc. to prevent crash.
                     for current_ban in range(target_ban, -1, -1):
+                        
                         def backtrack(rem_pts, rem_guards):
                             if not rem_pts or not rem_guards:
                                 return {}
                                 
                             curr_pt = rem_pts[0]
+                            
+                            # Find all guards who haven't done THIS point in 'current_ban' days
                             eligible_guards = []
                             for g in rem_guards:
                                 gn = g['name']
@@ -463,9 +463,12 @@ if check_password():
                                     eligible_guards.append((g, days_ago))
                                     
                             if not eligible_guards:
-                                return None 
+                                return None # Dead end, backtrack
                                 
+                            # Sort guards: Priority to those who did it longest ago
                             eligible_guards.sort(key=lambda x: x[1], reverse=True)
+                            
+                            # Pick top candidates and shuffle slightly so patterns don't repeat exactly
                             top_candidates = [eg[0] for eg in eligible_guards[:3]]
                             random.shuffle(top_candidates)
                             
@@ -475,7 +478,7 @@ if check_password():
                                 
                                 res = backtrack(next_pts, next_guards)
                                 if res is not None:
-                                    res[chosen_g['name']] = curr_pt 
+                                    res[chosen_g['name']] = curr_pt # Assignment is valid
                                     return res
                                     
                             return None 
@@ -487,6 +490,7 @@ if check_password():
                         if solution is not None:
                             return solution
                     
+                    # Absolute emergency fallback 
                     emergency = {}
                     for i, g in enumerate(guards_list):
                         if i < len(pts_list):
@@ -495,6 +499,7 @@ if check_password():
 
                 strict_solution = assign_point_centric(unassigned_guards, available_today, target_ban=5)
                 final_assignments.update(strict_solution)
+            # --- END OF POINT-CENTRIC ENGINE ---
 
             rot_data = []
             save_list = []
