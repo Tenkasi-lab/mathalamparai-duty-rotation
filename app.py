@@ -107,10 +107,8 @@ def check_password():
                         <div class="animated-arrow">▼</div>
                     </div>
             """, unsafe_allow_html=True)
-            
             st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="ENTER PASSCODE")
             st.markdown("</div>", unsafe_allow_html=True)
-        
         return False
     return True
 
@@ -130,16 +128,13 @@ def save_to_database(new_data):
     if os.path.exists(CSV_FILE):
         history_df = pd.read_csv(CSV_FILE)
         if "Role" not in history_df.columns: history_df["Role"] = "GUARD"
-        
         date_str = new_data[0]["Date"]
         shift_str = new_data[0]["Shift"]
         history_df = history_df[~((history_df["Date"] == date_str) & (history_df["Shift"] == shift_str))]
-        
         new_df = pd.DataFrame(new_data)
         updated_df = pd.concat([history_df, new_df], ignore_index=True)
     else:
         updated_df = pd.DataFrame(new_data)
-    
     updated_df.to_csv(CSV_FILE, index=False)
     return updated_df
 
@@ -168,13 +163,11 @@ def get_guard_history(staff_name, current_date):
     if not os.path.exists(CSV_FILE): return {}
     df = pd.read_csv(CSV_FILE)
     if "Role" not in df.columns: return {}
-
     df["DateObj"] = pd.to_datetime(df["Date"], format='%Y-%m-%d', errors='coerce')
     current_date_obj = pd.to_datetime(current_date, format='%Y-%m-%d')
 
     mask = (df["Staff Name"] == staff_name) & (df["Role"] == "GUARD") & (df["DateObj"] < current_date_obj)
     past_duties = df[mask].copy()
-    
     history = {}
     for _, row in past_duties.iterrows():
         if pd.notna(row["DateObj"]):
@@ -186,7 +179,6 @@ def get_guard_history(staff_name, current_date):
 
 if check_password():
     TIMEOUT_MINUTES = 5 
-    
     if "last_active" in st.session_state:
         elapsed_time = datetime.now() - st.session_state["last_active"]
         if elapsed_time > timedelta(minutes=TIMEOUT_MINUTES):
@@ -194,7 +186,6 @@ if check_password():
             st.session_state["screenshot_mode"] = False
             st.warning("⏱️ Session Expired! (5 நிமிடங்களுக்கு மேல் பயன்படுத்தாததால் சிஸ்டம் லாக் செய்யப்பட்டது)")
             st.rerun()
-            
     st.session_state["last_active"] = datetime.now()
     
     if st.session_state["screenshot_mode"]:
@@ -248,7 +239,6 @@ if check_password():
     current_time_obj = datetime.now(ist)
     current_time = current_time_obj.strftime("%I:%M %p")
     current_hour = current_time_obj.hour
-    
     today_date = current_time_obj.date()
     current_year = today_date.year
     
@@ -276,7 +266,6 @@ if check_password():
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "SATHYAJOTHY", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "BALA SUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "DHILIPMOHAN", "RANJITH KUMAR", "RANJITHKUMAR"]
-    
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
 
     dynamic_sheet_name = selected_date.strftime("%B-%Y").upper()
@@ -287,9 +276,7 @@ if check_password():
         date_str_key = selected_date.strftime("%Y-%m-%d")
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
         
-        # --- THE FIX: SMART CHECK TO PREVENT OVERWRITING EDITS ---
-        # If DB already has GUARDS for this date/shift, DO NOT recalculate the roster.
-        # Just display what is in the DB.
+        # Determine if data already exists to prevent unneeded overwrites
         db_already_calculated = not shift_data[shift_data["Role"] == "GUARD"].empty
         
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
@@ -327,18 +314,15 @@ if check_password():
 
         db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
         db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
-        db_guards_names = shift_data[shift_data["Role"] == "GUARD"]["Staff Name"].tolist()
-        db_guards_real = [g for g in db_guards_names if g != "VACANT"]
         
-        specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
-        regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
-        guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
-        sheet_guard_names = [g['name'] for g in guards_pool]
+        # --- THE FIX: Smart comparison of active staff ---
+        sheet_active_staff = [s['name'] for s in staff_on_duty]
+        db_active_staff = shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION"])]["Staff Name"].tolist()
+        db_active_staff = [n for n in db_active_staff if n != "VACANT"]
 
         leaves_changed = (set(week_offs) != set(db_wo)) or (set(on_leave) != set(db_leave))
-        guards_changed = (set(sheet_guard_names) != set(db_guards_real))
+        guards_changed = (set(sheet_active_staff) != set(db_active_staff))
         
-        # If DB already has the calculation AND sheet data hasn't changed, DO NOT recalculate
         sync_needed = not db_already_calculated or leaves_changed or guards_changed
 
         if not sync_needed:
@@ -373,6 +357,10 @@ if check_password():
         else:
             if db_already_calculated and not st.session_state["screenshot_mode"]:
                 st.warning("⚠️ Sheet Updates Detected! Auto-Syncing & Re-calculating...")
+
+            specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
+            regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
+            guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
 
             wellness = "VACANT"
             if specialist_present: wellness = specialist_present['name']
@@ -413,9 +401,7 @@ if check_password():
                 def assign_point_centric(guards_list, pts_list, target_ban=5):
                     for current_ban in range(target_ban, -1, -1):
                         def backtrack(rem_pts, rem_guards):
-                            if not rem_pts or not rem_guards:
-                                return {}
-                                
+                            if not rem_pts or not rem_guards: return {}
                             curr_pt = rem_pts[0]
                             eligible_guards = []
                             for g in rem_guards:
@@ -423,9 +409,8 @@ if check_password():
                                 days_ago = history_map.get(gn, {}).get(clean_point_name(curr_pt), 999)
                                 if days_ago > current_ban:
                                     eligible_guards.append((g, days_ago))
-                                    
                             if not eligible_guards: return None 
-                                
+                            
                             eligible_guards.sort(key=lambda x: x[1], reverse=True)
                             top_candidates = [eg[0] for eg in eligible_guards[:3]]
                             random.shuffle(top_candidates)
@@ -433,7 +418,6 @@ if check_password():
                             for chosen_g in top_candidates:
                                 next_pts = rem_pts[1:]
                                 next_guards = [g for g in rem_guards if g['name'] != chosen_g['name']]
-                                
                                 res = backtrack(next_pts, next_guards)
                                 if res is not None:
                                     res[chosen_g['name']] = curr_pt 
@@ -442,7 +426,6 @@ if check_password():
                             
                         shuffled_pts = list(pts_list)
                         random.shuffle(shuffled_pts)
-                        
                         solution = backtrack(shuffled_pts, guards_list)
                         if solution is not None: return solution
                     
@@ -584,7 +567,6 @@ if check_password():
                     staff_list = edited_df["Staff Name"].tolist()
                     duplicates = []
                     seen = set()
-                    
                     for name in staff_list:
                         if name != "VACANT":
                             if name in seen: duplicates.append(name)
