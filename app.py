@@ -30,7 +30,6 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # --- FRONT PAGE ONLY: SCI-FI HOLOGRAPHIC BLUE UI WITH ANIMATED POINTER ---
         st.markdown("""
             <style>
             @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700;800&display=swap');
@@ -75,44 +74,21 @@ def check_password():
             
             .portal-subtitle { color: #38bdf8; font-size: 14px; font-weight: 600; letter-spacing: 5px; margin: 0 0 20px 0; text-transform: uppercase; }
             
-            /* --- ANIMATED POINTING ARROW --- */
             .target-container { margin-top: 15px; margin-bottom: -15px; position: relative; z-index: 50; }
             .target-text { color: #38bdf8; font-size: 12px; letter-spacing: 2px; font-weight: bold; animation: blinkText 1.5s infinite; }
             .animated-arrow { color: #0ea5e9; font-size: 30px; text-shadow: 0 0 15px #0ea5e9; animation: bouncePoint 1s infinite; margin-top: 5px; }
             
-            @keyframes bouncePoint {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(15px); }
-            }
-            @keyframes blinkText {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.3; }
-            }
+            @keyframes bouncePoint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(15px); } }
+            @keyframes blinkText { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
             
-            /* Sci-Fi Input Box with Scanner effect */
             div[data-baseweb="input"] > div {
-                background-color: rgba(2, 6, 23, 0.8) !important;
-                border: 2px solid #0ea5e9 !important;
-                border-radius: 8px;
-                padding: 10px 12px;
-                position: relative;
-                overflow: hidden;
+                background-color: rgba(2, 6, 23, 0.8) !important; border: 2px solid #0ea5e9 !important; border-radius: 8px; padding: 10px 12px; position: relative; overflow: hidden;
             }
-            
-            div[data-baseweb="input"] > div:focus-within {
-                box-shadow: 0 0 25px rgba(14, 165, 233, 0.8) !important;
-                background-color: rgba(15, 23, 42, 0.9) !important;
-            }
-            
-            input[type="password"] {
-                color: #38bdf8 !important; text-align: center; letter-spacing: 5px; font-weight: bold; font-size: 20px; z-index: 10;
-            }
+            div[data-baseweb="input"] > div:focus-within { box-shadow: 0 0 25px rgba(14, 165, 233, 0.8) !important; background-color: rgba(15, 23, 42, 0.9) !important; }
+            input[type="password"] { color: #38bdf8 !important; text-align: center; letter-spacing: 5px; font-weight: bold; font-size: 20px; z-index: 10; }
             input::placeholder { letter-spacing: 2px; color: #475569 !important; font-weight: normal; font-size: 14px; }
             
-            @keyframes pulseGlow { 
-                from { box-shadow: 0 0 20px rgba(14, 165, 233, 0.1), inset 0 0 10px rgba(14, 165, 233, 0.05); } 
-                to { box-shadow: 0 0 40px rgba(14, 165, 233, 0.3), inset 0 0 20px rgba(14, 165, 233, 0.15); } 
-            }
+            @keyframes pulseGlow { from { box-shadow: 0 0 20px rgba(14, 165, 233, 0.1), inset 0 0 10px rgba(14, 165, 233, 0.05); } to { box-shadow: 0 0 40px rgba(14, 165, 233, 0.3), inset 0 0 20px rgba(14, 165, 233, 0.15); } }
             </style>
         """, unsafe_allow_html=True)
         
@@ -133,7 +109,6 @@ def check_password():
             """, unsafe_allow_html=True)
             
             st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="ENTER PASSCODE")
-            
             st.markdown("</div>", unsafe_allow_html=True)
         
         return False
@@ -170,13 +145,10 @@ def save_to_database(new_data):
 
 def get_role_summary(date_str, shift_str):
     if not os.path.exists(CSV_FILE): return "N/A", "N/A", "N/A"
-    
     df = pd.read_csv(CSV_FILE)
     if "Role" not in df.columns: return "N/A", "N/A", "N/A"
-    
     mask = (df["Date"] == date_str) & (df["Shift"] == shift_str)
     shift_df = df[mask]
-    
     if shift_df.empty: return "N/A", "N/A", "N/A"
 
     sups = shift_df[shift_df["Role"] == "SUPERVISOR"]["Staff Name"].tolist()
@@ -185,11 +157,8 @@ def get_role_summary(date_str, shift_str):
     final_recep = recep + recep_reliever
     well = shift_df[shift_df["Role"] == "WELLNESS"]["Staff Name"].tolist()
     
-    return ", ".join(sups) if sups else "N/A", \
-           ", ".join(final_recep) if final_recep else "N/A", \
-           ", ".join(well) if well else "N/A"
+    return ", ".join(sups) if sups else "N/A", ", ".join(final_recep) if final_recep else "N/A", ", ".join(well) if well else "N/A"
 
-# --- 100% STRICT ENGINE LOGIC ---
 def clean_point_name(p):
     p_str = str(p).upper()
     p_str = re.sub(r'^\d+\.\s*', '', p_str) 
@@ -231,8 +200,7 @@ if check_password():
     if st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
-            [data-testid="stSidebar"] {display: none;}
-            header {display: none;}
+            [data-testid="stSidebar"] {display: none;} header {display: none;}
             .stApp {background-color: #f8fafc !important;}
             .roster-card { background: white; border: 2px solid #0f172a; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: hidden;}
             .roster-header { background: #0f172a; color: white; text-align: center; padding: 15px; font-weight: 800; font-size: 18px;}
@@ -246,14 +214,12 @@ if check_password():
             .footer-card { margin-top: 15px; font-size: 13px; font-weight: bold;}
             </style>
         """, unsafe_allow_html=True)
-        
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("❌ EXIT SCREENSHOT MODE", use_container_width=True):
                 st.session_state["screenshot_mode"] = False
                 st.rerun()
 
-    # --- INSIDE DASHBOARD ONLY: CLEAN LIGHT UI ---
     if not st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
@@ -289,21 +255,15 @@ if check_password():
     ALLOWED_START_DATE = datetime(current_year, 1, 1).date()
     ALLOWED_END_DATE = datetime(current_year, 12, 31).date() 
     
-    if today_date < ALLOWED_START_DATE:
-        default_date = ALLOWED_START_DATE
-    elif today_date > ALLOWED_END_DATE:
-        default_date = ALLOWED_END_DATE
-    else:
-        default_date = today_date
+    if today_date < ALLOWED_START_DATE: default_date = ALLOWED_START_DATE
+    elif today_date > ALLOWED_END_DATE: default_date = ALLOWED_END_DATE
+    else: default_date = today_date
 
     selected_date = st.sidebar.date_input("SELECT DATE", value=default_date, min_value=ALLOWED_START_DATE, max_value=ALLOWED_END_DATE)
     
-    if 4 <= current_hour < 12: 
-        default_shift_index = 0  
-    elif 12 <= current_hour < 19: 
-        default_shift_index = 1  
-    else: 
-        default_shift_index = 2  
+    if 4 <= current_hour < 12: default_shift_index = 0  
+    elif 12 <= current_hour < 19: default_shift_index = 1  
+    else: default_shift_index = 2  
 
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"], index=default_shift_index)
     
@@ -326,9 +286,12 @@ if check_password():
         db_df = load_database()
         date_str_key = selected_date.strftime("%Y-%m-%d")
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
-        has_guards = not shift_data[shift_data["Role"] == "GUARD"].empty
         
-        # We need to know who is already assigned as WELLNESS in the DB to allow editing
+        # --- THE FIX: SMART CHECK TO PREVENT OVERWRITING EDITS ---
+        # If DB already has GUARDS for this date/shift, DO NOT recalculate the roster.
+        # Just display what is in the DB.
+        db_already_calculated = not shift_data[shift_data["Role"] == "GUARD"].empty
+        
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
         db_wellness = db_wellness_list[0] if db_wellness_list else "VACANT"
         
@@ -375,11 +338,12 @@ if check_password():
         leaves_changed = (set(week_offs) != set(db_wo)) or (set(on_leave) != set(db_leave))
         guards_changed = (set(sheet_guard_names) != set(db_guards_real))
         
-        sync_needed = (not has_guards) or leaves_changed or guards_changed
+        # If DB already has the calculation AND sheet data hasn't changed, DO NOT recalculate
+        sync_needed = not db_already_calculated or leaves_changed or guards_changed
 
         if not sync_needed:
             if not secret_edit and not st.session_state["screenshot_mode"]: 
-                st.success("✅ SYSTEM UP TO DATE (No changes in Sheet)")
+                st.success("✅ SYSTEM UP TO DATE (Loaded from Database)")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
             wo_names = ", ".join(week_offs) if week_offs else "NONE"
@@ -387,33 +351,28 @@ if check_password():
             
             guard_df = shift_data[shift_data["Role"] == "GUARD"].copy()
             
-            # --- FEATURE ADDITION: INCLUDE WELLNESS IN DISPLAY FOR EDITING ---
-            # Append the wellness assignment to the guard_df so it appears in the editor
             if db_wellness != "VACANT" and db_wellness != "N/A":
                 wellness_row = pd.DataFrame([{"Point": "WELLNESS", "Staff Name": db_wellness}])
                 guard_df = pd.concat([guard_df, wellness_row], ignore_index=True)
             elif secret_edit:
-                # If editing and vacant, add a row so we can assign someone
                  wellness_row = pd.DataFrame([{"Point": "WELLNESS", "Staff Name": "VACANT"}])
                  guard_df = pd.concat([guard_df, wellness_row], ignore_index=True)
             
             point_order = {p: i for i, p in enumerate(regular_duty_points)}
             def sort_key(pt):
-                if pt == "WELLNESS": return -1 # Always put wellness at the top in editor
+                if pt == "WELLNESS": return -1 
                 if pt == "RECEPTION RELIEVER": return 0
                 if "EXTRA" in str(pt):
-                    try:
-                        return 100 + int(str(pt).split('-')[1].split('.')[0])
-                    except:
-                        return 199
+                    try: return 100 + int(str(pt).split('-')[1].split('.')[0])
+                    except: return 199
                 return point_order.get(pt, 200)
             
             guard_df["sort_val"] = guard_df["Point"].apply(sort_key)
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            if has_guards and not st.session_state["screenshot_mode"]:
-                st.warning("⚠️ Sheet Updates Detected! Auto-Syncing...")
+            if db_already_calculated and not st.session_state["screenshot_mode"]:
+                st.warning("⚠️ Sheet Updates Detected! Auto-Syncing & Re-calculating...")
 
             wellness = "VACANT"
             if specialist_present: wellness = specialist_present['name']
@@ -445,26 +404,11 @@ if check_password():
             unassigned_guards = []
             history_map = {}
             
-            existing_guard_assignments = {}
-            if not shift_data.empty:
-                for _, r in shift_data[shift_data["Role"] == "GUARD"].iterrows():
-                    existing_guard_assignments[r["Staff Name"]] = r["Point"]
-            
             for guard in guards_pool:
                 g_name = guard['name']
                 history_map[g_name] = get_guard_history(g_name, date_str_key)
-                
-                if g_name in existing_guard_assignments:
-                    pt = existing_guard_assignments[g_name]
-                    if pt in available_today:
-                        final_assignments[g_name] = pt
-                        available_today.remove(pt)
-                    else:
-                        unassigned_guards.append(guard)
-                else:
-                    unassigned_guards.append(guard)
+                unassigned_guards.append(guard)
 
-            # --- STRICT BACKTRACKING ENGINE ---
             if unassigned_guards:
                 def assign_point_centric(guards_list, pts_list, target_ban=5):
                     for current_ban in range(target_ban, -1, -1):
@@ -480,8 +424,7 @@ if check_password():
                                 if days_ago > current_ban:
                                     eligible_guards.append((g, days_ago))
                                     
-                            if not eligible_guards:
-                                return None 
+                            if not eligible_guards: return None 
                                 
                             eligible_guards.sort(key=lambda x: x[1], reverse=True)
                             top_candidates = [eg[0] for eg in eligible_guards[:3]]
@@ -495,20 +438,17 @@ if check_password():
                                 if res is not None:
                                     res[chosen_g['name']] = curr_pt 
                                     return res
-                                    
                             return None 
                             
                         shuffled_pts = list(pts_list)
                         random.shuffle(shuffled_pts)
                         
                         solution = backtrack(shuffled_pts, guards_list)
-                        if solution is not None:
-                            return solution
+                        if solution is not None: return solution
                     
                     emergency = {}
                     for i, g in enumerate(guards_list):
-                        if i < len(pts_list):
-                            emergency[g['name']] = pts_list[i]
+                        if i < len(pts_list): emergency[g['name']] = pts_list[i]
                     return emergency
 
                 strict_solution = assign_point_centric(unassigned_guards, available_today, target_ban=5)
@@ -558,21 +498,16 @@ if check_password():
 
             save_to_database(save_list)
             
-            # Re-read for display consistency
-            if wellness != "VACANT":
-                rot_data.append({"Point": "WELLNESS", "Staff Name": wellness})
-            elif secret_edit:
-                rot_data.append({"Point": "WELLNESS", "Staff Name": "VACANT"})
+            if wellness != "VACANT": rot_data.append({"Point": "WELLNESS", "Staff Name": wellness})
+            elif secret_edit: rot_data.append({"Point": "WELLNESS", "Staff Name": "VACANT"})
                 
             point_order = {p: i for i, p in enumerate(current_duty_points)}
             def sort_key(pt):
                 if pt == "WELLNESS": return -1
                 if pt == "RECEPTION RELIEVER": return 0
                 if "EXTRA" in str(pt):
-                    try:
-                        return 100 + int(str(pt).split('-')[1].split('.')[0])
-                    except:
-                        return 199
+                    try: return 100 + int(str(pt).split('-')[1].split('.')[0])
+                    except: return 199
                 return point_order.get(pt, 200)
 
             rot_data.sort(key=lambda x: sort_key(x["Point"]))
@@ -585,7 +520,6 @@ if check_password():
         if st.session_state["screenshot_mode"]:
             html_rows = ""
             for _, row in df_display.iterrows():
-                # Filter out WELLNESS from the main guards table in screenshot mode to avoid duplication
                 if row['Point'] != "WELLNESS":
                     name = row['Staff Name']
                     style_class = "vacant" if name == "VACANT" else ("extra" if "EXTRA" in row['Point'] else "")
@@ -630,7 +564,6 @@ if check_password():
 
             if secret_edit:
                 st.warning("⚠️ EDIT MODE ENABLED - Changes are saved permanently!")
-                # Provide a wide list of options for the editor dropdown
                 dropdown_names = sorted(list(set(
                     df_display["Staff Name"].tolist() + 
                     shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR", "RECEPTION", "WELLNESS"])]["Staff Name"].tolist() + 
@@ -654,8 +587,7 @@ if check_password():
                     
                     for name in staff_list:
                         if name != "VACANT":
-                            if name in seen:
-                                duplicates.append(name)
+                            if name in seen: duplicates.append(name)
                             seen.add(name)
                     
                     if duplicates:
@@ -663,7 +595,6 @@ if check_password():
                         st.error(f"⚠️ பிழை: '{dup_names}' இரண்டு இடங்களில் உள்ளது! ஒருவருக்கு சரியாக மாற்றிவிட்டு சேவ் செய்யவும்.")
                     else:
                         current_db = pd.read_csv(CSV_FILE)
-                        # We are going to replace ALL Guards AND the Wellness entry for this shift
                         mask_keep = ~((current_db["Date"] == date_str_key) & 
                                       (current_db["Shift"] == target_shift) & 
                                       (current_db["Role"].isin(["GUARD", "WELLNESS"])))
@@ -671,29 +602,21 @@ if check_password():
                         
                         new_rows = []
                         for _, row in edited_df.iterrows():
-                            # Re-assign proper roles based on the point name
-                            role_to_save = "WELLNESS" if row["Point"] == "WELLNESS" else "GUARD"
-                            
-                            # Only save Wellness if it's not vacant, or save it anyway to track
-                            if row["Point"] == "WELLNESS" and row["Staff Name"] == "VACANT":
-                                continue # optionally skip saving vacant wellness
-                                
+                            if row["Point"] == "WELLNESS" and row["Staff Name"] == "VACANT": continue
+                            role_val = "WELLNESS" if row["Point"] == "WELLNESS" else "GUARD"
                             new_rows.append({
                                 "Date": date_str_key, 
                                 "Shift": target_shift, 
                                 "Staff Name": row["Staff Name"], 
                                 "Point": row["Point"], 
-                                "Role": "role_to_save" if row["Point"] == "WELLNESS" else "GUARD" # small inline fix
+                                "Role": role_val
                             })
-                            # Correcting the inline if-else
-                            new_rows[-1]["Role"] = "WELLNESS" if row["Point"] == "WELLNESS" else "GUARD"
                         
                         final_db = pd.concat([new_db, pd.DataFrame(new_rows)], ignore_index=True)
                         final_db.to_csv(CSV_FILE, index=False)
-                        st.success("Changes Saved Permanently!")
+                        st.success("✅ Changes Saved Permanently!")
                         st.rerun()
             else:
-                # Filter out WELLNESS for display mode (since it's in the top summary cards)
                 display_only_guards = df_display[df_display["Point"] != "WELLNESS"]
                 st.table(display_only_guards)
                 
