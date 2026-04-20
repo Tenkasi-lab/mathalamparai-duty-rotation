@@ -235,7 +235,7 @@ if check_password():
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
         db_wellness = db_wellness_list[0] if db_wellness_list else "VACANT"
         
-        with st.spinner("🔄 Checking Live Updates in Sheet..."):
+        with st.spinner("🔄 Loading Data..."):
             df_raw = pd.read_csv(url, header=None)
             
         day_str = str(selected_date.day)
@@ -246,7 +246,8 @@ if check_password():
             if date_col_idx is not None: break
 
         sheet_code = target_shift[0]
-        staff_on_duty, sups, week_offs, on_leave, general_staff = [], [], [], [], []
+        # --- THE FIX: ADD final_recep_team HERE SO IT'S ALWAYS DEFINED ---
+        staff_on_duty, sups, week_offs, on_leave, general_staff, final_recep_team = [], [], [], [], [], []
         
         if date_col_idx:
             for i in range(len(df_raw)):
@@ -264,8 +265,6 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
-        # --- SMART HYBRID LOGIC (NO SYNC BUTTON REQUIRED) ---
-        # Get what DB currently holds for this shift
         db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
         db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
         
@@ -273,20 +272,16 @@ if check_password():
         db_active_staff.discard("VACANT")
         db_active_staff.discard("N/A")
         
-        # Get what Sheet says should be there
         sheet_expected_staff = set(week_offs + on_leave + general_staff + [s['name'] for s in staff_on_duty])
         for s in sups: sheet_expected_staff.add(s)
 
-        # We ONLY sync if the exact set of people has changed (e.g. someone newly on leave, or new person added).
-        # Internal swapping via EDIT MODE will NOT trigger a resync because the set of names is identical!
         sync_needed = not db_already_calculated or (sheet_expected_staff != db_active_staff)
 
         if not sync_needed:
             if not secret_edit and not st.session_state["screenshot_mode"]: 
-                st.success("✅ SYSTEM UP TO DATE (Loaded Saved Roster)")
+                st.success("🔒 SYSTEM LOCKED: Showing Saved Roster (Manual Edits allowed without 7-Day rule restriction)")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
-            
             wo_names = ", ".join(week_offs) if week_offs else "NONE"
             ol_names = ", ".join(on_leave) if on_leave else "NONE"
             
@@ -312,8 +307,8 @@ if check_password():
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            if db_already_calculated and not st.session_state["screenshot_mode"]:
-                st.warning("⚠️ Sheet Updates Detected (Leaves/New Staff)! Auto-Generating New Roster...")
+            if not st.session_state["screenshot_mode"]:
+                st.warning("🔄 Generating New Roster and Applying 7-Day Rule...")
 
             specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
@@ -357,7 +352,6 @@ if check_password():
                 unassigned_guards.append(guard)
 
             if unassigned_guards:
-                # --- APPLY 7 DAY BAN ON AUTO GENERATION ONLY ---
                 def assign_point_centric(guards_list, pts_list, target_ban=7):
                     for current_ban in range(target_ban, -1, -1):
                         def backtrack(rem_pts, rem_guards):
@@ -486,11 +480,9 @@ if check_password():
             if secret_edit:
                 st.warning("⚠️ EDIT MODE ENABLED (God Mode) - You can assign anyone anywhere. 7-Day rule is Bypassed!")
                 
-                # Fetch ALL names from DB History + Sheet to populate dropdown
                 all_history_df = pd.read_csv(CSV_FILE) if os.path.exists(CSV_FILE) else pd.DataFrame(columns=["Staff Name"])
                 all_known_staff = all_history_df["Staff Name"].dropna().unique().tolist()
                 
-                # Protect against None or missing lists
                 safe_week_offs = week_offs if isinstance(week_offs, list) else []
                 safe_on_leave = on_leave if isinstance(on_leave, list) else []
                 safe_sups = sups if isinstance(sups, list) else []
