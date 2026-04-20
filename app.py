@@ -211,8 +211,9 @@ if check_password():
     else: default_shift_index = 2  
 
     target_shift = st.sidebar.selectbox("SELECT SHIFT", ["A Shift", "B Shift", "C Shift"], index=default_shift_index)
+    date_str_key = selected_date.strftime("%Y-%m-%d")
     
-    st.sidebar.markdown("<br>"*2, unsafe_allow_html=True)
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
     if not st.session_state["screenshot_mode"]:
@@ -228,7 +229,6 @@ if check_password():
 
     try:
         db_df = load_database()
-        date_str_key = selected_date.strftime("%Y-%m-%d")
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
         
         db_already_calculated = not shift_data[shift_data["Role"] == "GUARD"].empty
@@ -264,21 +264,29 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
+        # --- SMART HYBRID LOGIC (NO SYNC BUTTON REQUIRED) ---
+        # Get what DB currently holds for this shift
         db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
         db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
-        sheet_active_staff = [s['name'] for s in staff_on_duty]
-        db_active_staff = shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION"])]["Staff Name"].tolist()
-        db_active_staff = [n for n in db_active_staff if n != "VACANT"]
+        
+        db_active_staff = set(shift_data["Staff Name"].tolist())
+        db_active_staff.discard("VACANT")
+        db_active_staff.discard("N/A")
+        
+        # Get what Sheet says should be there
+        sheet_expected_staff = set(week_offs + on_leave + general_staff + [s['name'] for s in staff_on_duty])
+        for s in sups: sheet_expected_staff.add(s)
 
-        leaves_changed = (set(week_offs) != set(db_wo)) or (set(on_leave) != set(db_leave))
-        guards_changed = (set(sheet_active_staff) != set(db_active_staff))
-        sync_needed = not db_already_calculated or leaves_changed or guards_changed
+        # We ONLY sync if the exact set of people has changed (e.g. someone newly on leave, or new person added).
+        # Internal swapping via EDIT MODE will NOT trigger a resync because the set of names is identical!
+        sync_needed = not db_already_calculated or (sheet_expected_staff != db_active_staff)
 
         if not sync_needed:
             if not secret_edit and not st.session_state["screenshot_mode"]: 
-                st.success("✅ SYSTEM UP TO DATE (Loaded Locked Roster from Database)")
+                st.success("✅ SYSTEM UP TO DATE (Loaded Saved Roster)")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
+            
             wo_names = ", ".join(week_offs) if week_offs else "NONE"
             ol_names = ", ".join(on_leave) if on_leave else "NONE"
             
@@ -305,7 +313,7 @@ if check_password():
             
         else:
             if db_already_calculated and not st.session_state["screenshot_mode"]:
-                st.warning("⚠️ Google Sheet Changes Detected! Generating New Roster...")
+                st.warning("⚠️ Sheet Updates Detected (Leaves/New Staff)! Auto-Generating New Roster...")
 
             specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
@@ -349,7 +357,7 @@ if check_password():
                 unassigned_guards.append(guard)
 
             if unassigned_guards:
-                # --- UPDATE: target_ban CHANGED TO 7 (7-DAY STRICT RULE) ---
+                # --- APPLY 7 DAY BAN ON AUTO GENERATION ONLY ---
                 def assign_point_centric(guards_list, pts_list, target_ban=7):
                     for current_ban in range(target_ban, -1, -1):
                         def backtrack(rem_pts, rem_guards):
@@ -380,7 +388,7 @@ if check_password():
                     for i, g in enumerate(guards_list):
                         if i < len(pts_list): emergency[g['name']] = pts_list[i]
                     return emergency
-                # --- APPLY 7 DAY BAN ---
+                
                 strict_solution = assign_point_centric(unassigned_guards, available_today, target_ban=7)
                 final_assignments.update(strict_solution)
 
@@ -474,10 +482,28 @@ if check_password():
             df_display = df_display.reset_index(drop=True)
             df_display.index += 1
 
+            # --- EDIT MODE: NO RULES ENFORCED HERE, JUST SAVE ---
             if secret_edit:
-                st.warning("⚠️ EDIT MODE ENABLED - Changes are saved permanently!")
-                dropdown_names = sorted(list(set(df_display["Staff Name"].tolist() + shift_data[shift_data["Role"].isin(["WO", "LEAVE", "SUPERVISOR", "RECEPTION", "WELLNESS"])]["Staff Name"].tolist() + ["VACANT"])))
+                st.warning("⚠️ EDIT MODE ENABLED (God Mode) - You can assign anyone anywhere. 7-Day rule is Bypassed!")
+                
+                # Fetch ALL names from DB History + Sheet to populate dropdown
+                all_history_df = pd.read_csv(CSV_FILE) if os.path.exists(CSV_FILE) else pd.DataFrame(columns=["Staff Name"])
+                all_known_staff = all_history_df["Staff Name"].dropna().unique().tolist()
+                
+                # Protect against None or missing lists
+                safe_week_offs = week_offs if isinstance(week_offs, list) else []
+                safe_on_leave = on_leave if isinstance(on_leave, list) else []
+                safe_sups = sups if isinstance(sups, list) else []
+                safe_final_recep_team = final_recep_team if isinstance(final_recep_team, list) else []
+                safe_staff_on_duty = [s['name'] for s in staff_on_duty] if isinstance(staff_on_duty, list) else []
+
+                sheet_staff = safe_staff_on_duty + safe_week_offs + safe_on_leave + safe_sups + safe_final_recep_team
+                combined_pool = list(set(all_known_staff + sheet_staff + df_display["Staff Name"].tolist() + ["VACANT"]))
+                combined_pool = [n for n in combined_pool if n not in ["VACANT", "N/A"]]
+                dropdown_names = sorted(combined_pool) + ["VACANT"]
+                
                 edited_df = st.data_editor(df_display, column_config={"Staff Name": st.column_config.SelectboxColumn("ASSIGN STAFF", options=dropdown_names), "Point": st.column_config.Column(disabled=True)}, use_container_width=True, key="data_editor")
+                
                 if st.button("💾 SAVE CHANGES TO DATABASE", type="primary"):
                     staff_list = edited_df["Staff Name"].tolist()
                     duplicates = []
