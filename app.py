@@ -264,19 +264,15 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
-        # DB ACTIVE STAFF FETCHING
         db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
         db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
-        
-        sheet_expected_staff = set(week_offs + on_leave + general_staff + [s['name'] for s in staff_on_duty])
-        for s in sups: sheet_expected_staff.add(s)
-            
-        db_active_staff = set(shift_data["Staff Name"].tolist())
-        db_active_staff.discard("VACANT")
-        db_active_staff.discard("N/A")
+        sheet_active_staff = [s['name'] for s in staff_on_duty]
+        db_active_staff = shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION"])]["Staff Name"].tolist()
+        db_active_staff = [n for n in db_active_staff if n != "VACANT"]
 
-        # PERFECT SYNC LOCK: Only re-calculate if the actual names in the sheet changed from what we saved
-        sync_needed = not db_already_calculated or (sheet_expected_staff != db_active_staff)
+        leaves_changed = (set(week_offs) != set(db_wo)) or (set(on_leave) != set(db_leave))
+        guards_changed = (set(sheet_active_staff) != set(db_active_staff))
+        sync_needed = not db_already_calculated or leaves_changed or guards_changed
 
         if not sync_needed:
             if not secret_edit and not st.session_state["screenshot_mode"]: 
@@ -315,7 +311,6 @@ if check_password():
             regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
             guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
 
-            # --- WELLNESS AUTO-FILL: Pick replacement guard if specialist is absent ---
             wellness = "VACANT"
             if specialist_present: 
                 wellness = specialist_present['name']
@@ -354,7 +349,8 @@ if check_password():
                 unassigned_guards.append(guard)
 
             if unassigned_guards:
-                def assign_point_centric(guards_list, pts_list, target_ban=5):
+                # --- UPDATE: target_ban CHANGED TO 7 (7-DAY STRICT RULE) ---
+                def assign_point_centric(guards_list, pts_list, target_ban=7):
                     for current_ban in range(target_ban, -1, -1):
                         def backtrack(rem_pts, rem_guards):
                             if not rem_pts or not rem_guards: return {}
@@ -384,7 +380,8 @@ if check_password():
                     for i, g in enumerate(guards_list):
                         if i < len(pts_list): emergency[g['name']] = pts_list[i]
                     return emergency
-                strict_solution = assign_point_centric(unassigned_guards, available_today, target_ban=5)
+                # --- APPLY 7 DAY BAN ---
+                strict_solution = assign_point_centric(unassigned_guards, available_today, target_ban=7)
                 final_assignments.update(strict_solution)
 
             rot_data = []
