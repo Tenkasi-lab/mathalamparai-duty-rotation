@@ -33,41 +33,79 @@ def check_password():
         st.markdown("""
             <style>
             @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700;800&display=swap');
-            .stApp { font-family: 'Rajdhani', sans-serif; background: linear-gradient(rgba(4, 9, 20, 0.85), rgba(4, 9, 20, 0.95)), url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important; background-size: cover !important; }
+            
+            .stApp { 
+                font-family: 'Rajdhani', sans-serif;
+                background: linear-gradient(rgba(4, 9, 20, 0.85), rgba(4, 9, 20, 0.95)), 
+                            url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed !important;
+                background-size: cover !important;
+            }
+            
             header, [data-testid="stSidebar"], .stDeployButton {display: none !important;}
+            
             [data-testid="stVerticalBlock"] > div > div { display: flex; justify-content: center; }
             [data-testid="stHorizontalBlock"] { margin-top: 10vh; align-items: center; justify-content: center; }
-            .sci-fi-card { background: rgba(2, 12, 27, 0.7); backdrop-filter: blur(10px); border: 2px solid rgba(14, 165, 233, 0.4); border-radius: 15px; padding: 40px; box-shadow: 0 0 30px rgba(14, 165, 233, 0.2), inset 0 0 20px rgba(14, 165, 233, 0.1); text-align: center; animation: pulseGlow 3s infinite alternate; position: relative; width: 100%; max-width: 480px; }
+            
+            .sci-fi-card {
+                background: rgba(2, 12, 27, 0.7);
+                backdrop-filter: blur(10px);
+                border: 2px solid rgba(14, 165, 233, 0.4);
+                border-radius: 15px;
+                padding: 40px;
+                box-shadow: 0 0 30px rgba(14, 165, 233, 0.2), inset 0 0 20px rgba(14, 165, 233, 0.1);
+                text-align: center;
+                animation: pulseGlow 3s infinite alternate;
+                position: relative;
+                width: 100%;
+                max-width: 480px;
+            }
+            
             .sci-fi-card::before, .sci-fi-card::after { content: ''; position: absolute; width: 40px; height: 40px; border-top: 3px solid #0ea5e9; }
             .sci-fi-card::before { top: -2px; left: -2px; border-left: 3px solid #0ea5e9; border-top-left-radius: 15px; }
             .sci-fi-card::after { top: -2px; right: -2px; border-right: 3px solid #0ea5e9; border-top-right-radius: 15px; }
+            
             .sci-fi-card-bottom-left, .sci-fi-card-bottom-right { position: absolute; width: 40px; height: 40px; border-bottom: 3px solid #0ea5e9; }
             .sci-fi-card-bottom-left { bottom: -2px; left: -2px; border-left: 3px solid #0ea5e9; border-bottom-left-radius: 15px; }
             .sci-fi-card-bottom-right { bottom: -2px; right: -2px; border-right: 3px solid #0ea5e9; border-bottom-right-radius: 15px; }
+            
             .shield-icon { font-size: 55px; margin-bottom: 10px; filter: drop-shadow(0 0 15px #0ea5e9); }
+            
             .portal-title { color: #e0f2fe; font-size: 34px; font-weight: 800; letter-spacing: 4px; margin: 0 0 5px 0; text-shadow: 0 0 10px #0ea5e9; white-space: nowrap; }
+            
             .portal-subtitle { color: #38bdf8; font-size: 14px; font-weight: 600; letter-spacing: 5px; margin: 0 0 20px 0; text-transform: uppercase; }
+            
             .target-container { margin-top: 15px; margin-bottom: -15px; position: relative; z-index: 50; }
             .target-text { color: #38bdf8; font-size: 12px; letter-spacing: 2px; font-weight: bold; animation: blinkText 1.5s infinite; }
             .animated-arrow { color: #0ea5e9; font-size: 30px; text-shadow: 0 0 15px #0ea5e9; animation: bouncePoint 1s infinite; margin-top: 5px; }
+            
             @keyframes bouncePoint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(15px); } }
             @keyframes blinkText { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-            div[data-baseweb="input"] > div { background-color: rgba(2, 6, 23, 0.8) !important; border: 2px solid #0ea5e9 !important; border-radius: 8px; padding: 10px 12px; position: relative; overflow: hidden; }
+            
+            div[data-baseweb="input"] > div {
+                background-color: rgba(2, 6, 23, 0.8) !important; border: 2px solid #0ea5e9 !important; border-radius: 8px; padding: 10px 12px; position: relative; overflow: hidden;
+            }
             div[data-baseweb="input"] > div:focus-within { box-shadow: 0 0 25px rgba(14, 165, 233, 0.8) !important; background-color: rgba(15, 23, 42, 0.9) !important; }
             input[type="password"] { color: #38bdf8 !important; text-align: center; letter-spacing: 5px; font-weight: bold; font-size: 20px; z-index: 10; }
             input::placeholder { letter-spacing: 2px; color: #475569 !important; font-weight: normal; font-size: 14px; }
+            
             @keyframes pulseGlow { from { box-shadow: 0 0 20px rgba(14, 165, 233, 0.1), inset 0 0 10px rgba(14, 165, 233, 0.05); } to { box-shadow: 0 0 40px rgba(14, 165, 233, 0.3), inset 0 0 20px rgba(14, 165, 233, 0.15); } }
             </style>
         """, unsafe_allow_html=True)
+        
         col1, col2, col3 = st.columns([1, 3, 1])
         with col2:
             st.markdown("""
                 <div class="sci-fi-card">
-                    <div class="sci-fi-card-bottom-left"></div><div class="sci-fi-card-bottom-right"></div>
+                    <div class="sci-fi-card-bottom-left"></div>
+                    <div class="sci-fi-card-bottom-right"></div>
                     <div class="shield-icon">🛡️</div>
                     <h1 class="portal-title">MATHALAMPARAI</h1>
                     <p class="portal-subtitle">EXECUTIVE DUTY PORTAL</p>
-                    <div class="target-container"><div class="target-text">AWAITING SECURE INPUT</div><div class="animated-arrow">▼</div></div>
+                    
+                    <div class="target-container">
+                        <div class="target-text">AWAITING SECURE INPUT</div>
+                        <div class="animated-arrow">▼</div>
+                    </div>
             """, unsafe_allow_html=True)
             st.text_input("PASSWORD", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="ENTER PASSCODE")
             st.markdown("</div>", unsafe_allow_html=True)
@@ -110,6 +148,7 @@ def get_role_summary(date_str, shift_str):
     recep_reliever = shift_df[shift_df["Point"] == "RECEPTION RELIEVER"]["Staff Name"].tolist()
     final_recep = recep + recep_reliever
     well = shift_df[shift_df["Role"] == "WELLNESS"]["Staff Name"].tolist()
+    
     return ", ".join(sups) if sups else "N/A", ", ".join(final_recep) if final_recep else "N/A", ", ".join(well) if well else "N/A"
 
 def clean_point_name(p):
@@ -230,6 +269,7 @@ if check_password():
         db_df = load_database()
         date_str_key = selected_date.strftime("%Y-%m-%d")
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
+        
         db_already_calculated = not shift_data[shift_data["Role"] == "GUARD"].empty
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
         db_wellness = db_wellness_list[0] if db_wellness_list else "VACANT"
@@ -254,30 +294,37 @@ if check_password():
                 status = str(df_raw.iloc[i, date_col_idx]).strip().upper().replace(" ", "")
                 
                 if name and name not in ["NAME", "NAN"]:
+                    # --- BUG FIX: ONLY PROCESS GENERAL STAFF FOR 'A SHIFT' TO AVOID FALSE RECALCULATION LOOP ---
                     if status in ["WO", "W/O", "OFF"]: week_offs.append(name)
                     elif status in ["L", "LEAVE"]: on_leave.append(name)
-                    elif status in ["G", "GEN", "GENERAL"]:
-                        if any(s in name for s in supervisors_pool): sups.append(f"{name} (GEN)") 
-                        else: general_staff.append(name)
                     elif status == sheet_code: 
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
+                    elif status in ["G", "GEN", "GENERAL"] and target_shift == "A Shift":
+                        if any(s in name for s in supervisors_pool): sups.append(f"{name} (GEN)") 
+                        else: general_staff.append(name)
 
-        db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
-        db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
-        sheet_active_staff = [s['name'] for s in staff_on_duty]
-        db_active_staff = shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION"])]["Staff Name"].tolist()
-        db_active_staff = [n for n in db_active_staff if n != "VACANT"]
+        # --- THE FIX: ROCK SOLID SYNC CHECK ---
+        # 1. Get total expected staff from Google Sheet for THIS shift exactly
+        sheet_expected_staff = set(week_offs + on_leave + general_staff + [s['name'] for s in staff_on_duty])
+        for s in sups: sheet_expected_staff.add(s) 
+            
+        # 2. Get total assigned staff currently in DB for this Date & Shift
+        db_active_staff = set(shift_data["Staff Name"].tolist())
+        db_active_staff.discard("VACANT")
+        db_active_staff.discard("N/A")
 
-        leaves_changed = (set(week_offs) != set(db_wo)) or (set(on_leave) != set(db_leave))
-        guards_changed = (set(sheet_active_staff) != set(db_active_staff))
-        sync_needed = not db_already_calculated or leaves_changed or guards_changed
+        # 3. If the names match perfectly, the roster DOES NOT change. (Even if they swapped points via Edit Mode)
+        sync_needed = not db_already_calculated or (sheet_expected_staff != db_active_staff)
 
         if not sync_needed:
-            if not secret_edit and not st.session_state["screenshot_mode"]: st.success("✅ SYSTEM UP TO DATE (Loaded from Database)")
+            if not secret_edit and not st.session_state["screenshot_mode"]: 
+                st.success("✅ SYSTEM UP TO DATE (Loaded Locked Roster from Database)")
+            
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
             wo_names = ", ".join(week_offs) if week_offs else "NONE"
             ol_names = ", ".join(on_leave) if on_leave else "NONE"
+            
             guard_df = shift_data[shift_data["Role"] == "GUARD"].copy()
             
             if db_wellness != "VACANT" and db_wellness != "N/A":
@@ -301,22 +348,17 @@ if check_password():
             
         else:
             if db_already_calculated and not st.session_state["screenshot_mode"]:
-                st.warning("⚠️ Sheet Updates Detected! Auto-Syncing & Re-calculating...")
+                st.warning("⚠️ Google Sheet Changes Detected! Generating New Roster...")
 
             specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
             guards_pool = [s for s in staff_on_duty if s not in regular_recep_present and (not specialist_present or s['name'] != specialist_present['name'])]
 
-            # --- THE FIX: SMART WELLNESS AUTO-FILL ---
             wellness = "VACANT"
             if specialist_present: 
                 wellness = specialist_present['name']
-            elif guards_pool: # ALWAYS try to pick someone for WELLNESS if there are any guards available (Not just on Tuesdays)
-                # Instead of just week_num % length, let's use the 5-day strict rule history to pick the best person for Wellness too!
-                # Wait, Wellness is a specific role. To keep it simple and ensure it's filled:
-                # We'll just pick the first person from the pool who hasn't done it recently, or just round-robin.
+            elif guards_pool:
                 day_of_year = selected_date.timetuple().tm_yday
-                # Pop a guard based on the day of the year so it rotates fairly
                 guard_index_for_wellness = day_of_year % len(guards_pool)
                 wellness = guards_pool.pop(guard_index_for_wellness)['name']
 
