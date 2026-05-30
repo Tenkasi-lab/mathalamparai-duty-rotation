@@ -231,12 +231,11 @@ if check_password():
         db_df = load_database()
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
         
-        # ABSOLUTE GOD-LOCK: If any guards exist in DB for this shift, DO NOT recalculate!
         db_already_calculated = not shift_data[shift_data["Role"] == "GUARD"].empty
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
         db_wellness = db_wellness_list[0] if db_wellness_list else "VACANT"
         
-        with st.spinner("🔄 Loading Data..."):
+        with st.spinner("🔄 Checking Live Updates in Sheet..."):
             df_raw = pd.read_csv(url, header=None)
             
         day_str = str(selected_date.day)
@@ -265,17 +264,30 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
-        # --- THE FIX: 100% ABSOLUTE LOCK ---
-        # No more sensitive auto-syncing. If it's generated once, it stays locked forever.
-        sync_needed = not db_already_calculated
+        # --- THE FIX: SMART MISMATCH DETECTOR LAUNCHED ---
+        current_sheet_leaves = set(week_offs + on_leave)
+        
+        db_active_names = set(shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION", "SUPERVISOR"])]["Staff Name"].tolist())
+        db_leave_names = set(shift_data[shift_data["Role"].isin(["WO", "LEAVE"])]["Staff Name"].tolist())
+        
+        db_active_names = {n.replace(" (GEN)", "").strip() for n in db_active_names if n != "VACANT"}
+        db_leave_names = {n.replace(" (GEN)", "").strip() for n in db_leave_names}
+        
+        sheet_working_names = {s['name'] for s in staff_on_duty} | set(general_staff)
+        for s in sups: sheet_working_names.add(s.replace(" (GEN)", "").strip())
+
+        # Smart Checks
+        anyone_went_on_leave = any(name in current_sheet_leaves for name in db_active_names)
+        anyone_returned_from_leave = any(name in sheet_working_names for name in db_leave_names)
+        
+        # Sync ONLY if database is empty OR if someone's actual attendance state changed in the Google Sheet
+        sync_needed = not db_already_calculated or anyone_went_on_leave or anyone_returned_from_leave
 
         if not sync_needed:
             if not secret_edit and not st.session_state["screenshot_mode"]: 
-                st.success("🔒 SYSTEM LOCKED: Showing Saved Roster (Manual Edits allowed without 7-Day rule restriction)")
+                st.success("🔒 SYSTEM LOCKED: Showing Saved Roster")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
-            
-            # Show live leaves from sheet so you know who is absent, even if the duty is locked
             wo_names = ", ".join(week_offs) if week_offs else "NONE"
             ol_names = ", ".join(on_leave) if on_leave else "NONE"
             
@@ -301,8 +313,8 @@ if check_password():
             df_display = guard_df.sort_values("sort_val")[["Point", "Staff Name"]]
             
         else:
-            if not st.session_state["screenshot_mode"]:
-                st.warning("🔄 Generating New Roster and Applying 7-Day Rule...")
+            if db_already_calculated and not st.session_state["screenshot_mode"]:
+                st.warning("🔄 Google Sheet Attendance Changes Detected! Auto-Updating and Re-calculating...")
 
             specialist_present = next((s for s in staff_on_duty if any(w.replace(" ","") in s['name'].replace(" ","") for w in wellness_specialists)), None)
             regular_recep_present = [s for s in staff_on_duty if any(r.replace(" ","") in s['name'].replace(" ","") for r in receptionists_pool)]
