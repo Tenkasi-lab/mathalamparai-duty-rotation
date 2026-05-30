@@ -219,7 +219,7 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
-    receptionists_pool = ["KAVITHA", "ANJANA DEVI", "ANJANA DEVI", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL"]
+    receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "SATHYAJOTHY", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL"]
     wellness_specialists = ["BALASUBRAMANIAN", "BALA SUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "DHILIPMOHAN", "RANJITH KUMAR", "RANJITHKUMAR"]
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
@@ -231,6 +231,7 @@ if check_password():
         db_df = load_database()
         shift_data = db_df[(db_df["Date"] == date_str_key) & (db_df["Shift"] == target_shift)]
         
+        # ABSOLUTE GOD-LOCK: If any guards exist in DB for this shift, DO NOT recalculate!
         db_already_calculated = not shift_data[shift_data["Role"] == "GUARD"].empty
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
         db_wellness = db_wellness_list[0] if db_wellness_list else "VACANT"
@@ -246,7 +247,6 @@ if check_password():
             if date_col_idx is not None: break
 
         sheet_code = target_shift[0]
-        # --- THE FIX: ADD final_recep_team HERE SO IT'S ALWAYS DEFINED ---
         staff_on_duty, sups, week_offs, on_leave, general_staff, final_recep_team = [], [], [], [], [], []
         
         if date_col_idx:
@@ -265,23 +265,17 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
-        db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
-        db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
-        
-        db_active_staff = set(shift_data["Staff Name"].tolist())
-        db_active_staff.discard("VACANT")
-        db_active_staff.discard("N/A")
-        
-        sheet_expected_staff = set(week_offs + on_leave + general_staff + [s['name'] for s in staff_on_duty])
-        for s in sups: sheet_expected_staff.add(s)
-
-        sync_needed = not db_already_calculated or (sheet_expected_staff != db_active_staff)
+        # --- THE FIX: 100% ABSOLUTE LOCK ---
+        # No more sensitive auto-syncing. If it's generated once, it stays locked forever.
+        sync_needed = not db_already_calculated
 
         if not sync_needed:
             if not secret_edit and not st.session_state["screenshot_mode"]: 
                 st.success("🔒 SYSTEM LOCKED: Showing Saved Roster (Manual Edits allowed without 7-Day rule restriction)")
             
             sups_text, recep_text, wellness_text = get_role_summary(date_str_key, target_shift)
+            
+            # Show live leaves from sheet so you know who is absent, even if the duty is locked
             wo_names = ", ".join(week_offs) if week_offs else "NONE"
             ol_names = ", ".join(on_leave) if on_leave else "NONE"
             
@@ -476,7 +470,6 @@ if check_password():
             df_display = df_display.reset_index(drop=True)
             df_display.index += 1
 
-            # --- EDIT MODE: NO RULES ENFORCED HERE, JUST SAVE ---
             if secret_edit:
                 st.warning("⚠️ EDIT MODE ENABLED (God Mode) - You can assign anyone anywhere. 7-Day rule is Bypassed!")
                 
