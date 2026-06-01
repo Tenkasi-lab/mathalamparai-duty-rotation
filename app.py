@@ -216,10 +216,21 @@ if check_password():
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
+    # --- ADDED: THE RESET BUTTON FOR STUCK DATABASES (ONLY VISIBLE IN EDIT MODE) ---
+    if secret_edit:
+        st.sidebar.markdown("<br>", unsafe_allow_html=True)
+        if st.sidebar.button("🗑️ RESET THIS SHIFT", help="Deletes saved data for this shift to force a fresh regeneration", type="primary", use_container_width=True):
+            if os.path.exists(CSV_FILE):
+                current_db = pd.read_csv(CSV_FILE)
+                mask_keep = ~((current_db["Date"] == date_str_key) & (current_db["Shift"] == target_shift))
+                new_db = current_db[mask_keep].copy()
+                new_db.to_csv(CSV_FILE, index=False)
+                st.success("✅ Shift Data Reset! Refreshing...")
+                st.rerun()
+
     if not st.session_state["screenshot_mode"]:
         st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
-    # --- THE FIX: ADDED ANJANA DEVI TO RECEPTIONISTS POOL ---
     receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "SATHYAJOTHY", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL", "ANJANA DEVI", "ANJANADEVI"]
     wellness_specialists = ["BALASUBRAMANIAN", "BALA SUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "DHILIPMOHAN", "RANJITH KUMAR", "RANJITHKUMAR"]
@@ -236,7 +247,7 @@ if check_password():
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
         db_wellness = db_wellness_list[0] if db_wellness_list else "VACANT"
         
-        with st.spinner("🔄 Checking Live Updates in Sheet..."):
+        with st.spinner("🔄 Loading Data..."):
             df_raw = pd.read_csv(url, header=None)
             
         day_str = str(selected_date.day)
@@ -265,11 +276,12 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
-        current_sheet_leaves = set(week_offs + on_leave)
+        db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
+        db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
         
+        current_sheet_leaves = set(week_offs + on_leave)
         db_active_names = set(shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION", "SUPERVISOR"])]["Staff Name"].tolist())
         db_leave_names = set(shift_data[shift_data["Role"].isin(["WO", "LEAVE"])]["Staff Name"].tolist())
-        
         db_active_names = {n.replace(" (GEN)", "").strip() for n in db_active_names if n != "VACANT"}
         db_leave_names = {n.replace(" (GEN)", "").strip() for n in db_leave_names}
         
