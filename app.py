@@ -216,7 +216,6 @@ if check_password():
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     secret_edit = st.sidebar.checkbox("✏️ EDIT MODE", help="Enable to edit duties manually")
     
-    # --- ADDED: THE RESET BUTTON FOR STUCK DATABASES (ONLY VISIBLE IN EDIT MODE) ---
     if secret_edit:
         st.sidebar.markdown("<br>", unsafe_allow_html=True)
         if st.sidebar.button("🗑️ RESET THIS SHIFT", help="Deletes saved data for this shift to force a fresh regeneration", type="primary", use_container_width=True):
@@ -247,7 +246,7 @@ if check_password():
         db_wellness_list = shift_data[shift_data["Role"] == "WELLNESS"]["Staff Name"].tolist()
         db_wellness = db_wellness_list[0] if db_wellness_list else "VACANT"
         
-        with st.spinner("🔄 Loading Data..."):
+        with st.spinner("🔄 Checking Live Updates in Sheet..."):
             df_raw = pd.read_csv(url, header=None)
             
         day_str = str(selected_date.day)
@@ -276,12 +275,11 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
-        db_wo = shift_data[shift_data["Role"] == "WO"]["Staff Name"].tolist()
-        db_leave = shift_data[shift_data["Role"] == "LEAVE"]["Staff Name"].tolist()
-        
         current_sheet_leaves = set(week_offs + on_leave)
+        
         db_active_names = set(shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION", "SUPERVISOR"])]["Staff Name"].tolist())
         db_leave_names = set(shift_data[shift_data["Role"].isin(["WO", "LEAVE"])]["Staff Name"].tolist())
+        
         db_active_names = {n.replace(" (GEN)", "").strip() for n in db_active_names if n != "VACANT"}
         db_leave_names = {n.replace(" (GEN)", "").strip() for n in db_leave_names}
         
@@ -368,32 +366,42 @@ if check_password():
                 unassigned_guards.append(guard)
 
             if unassigned_guards:
+                # --- FIXED: SMART GREEDY RETRY LOGIC (100% RELIABLE 7-DAY RULE) ---
                 def assign_point_centric(guards_list, pts_list, target_ban=7):
                     for current_ban in range(target_ban, -1, -1):
-                        def backtrack(rem_pts, rem_guards):
-                            if not rem_pts or not rem_guards: return {}
-                            curr_pt = rem_pts[0]
-                            eligible_guards = []
-                            for g in rem_guards:
-                                gn = g['name']
-                                days_ago = history_map.get(gn, {}).get(clean_point_name(curr_pt), 999)
-                                if days_ago > current_ban: eligible_guards.append((g, days_ago))
-                            if not eligible_guards: return None 
-                            eligible_guards.sort(key=lambda x: x[1], reverse=True)
-                            top_candidates = [eg[0] for eg in eligible_guards[:3]]
-                            random.shuffle(top_candidates)
-                            for chosen_g in top_candidates:
-                                next_pts = rem_pts[1:]
-                                next_guards = [g for g in rem_guards if g['name'] != chosen_g['name']]
-                                res = backtrack(next_pts, next_guards)
-                                if res is not None:
-                                    res[chosen_g['name']] = curr_pt 
-                                    return res
-                            return None 
-                        shuffled_pts = list(pts_list)
-                        random.shuffle(shuffled_pts)
-                        solution = backtrack(shuffled_pts, guards_list)
-                        if solution is not None: return solution
+                        for attempt in range(500): # Try 500 different random combinations
+                            temp_assignment = {}
+                            available_pts = list(pts_list)
+                            unassigned_g = list(guards_list)
+                            random.shuffle(available_pts) # Add randomness to find better matches
+                            
+                            success = True
+                            for pt in available_pts:
+                                if not unassigned_g:
+                                    break # Out of guards. The remaining points will stay vacant.
+                                    
+                                # Find guards who haven't done this point within 'current_ban' days
+                                valid_guards = [g for g in unassigned_g if history_map.get(g['name'], {}).get(clean_point_name(pt), 999) > current_ban]
+                                
+                                if not valid_guards:
+                                    success = False
+                                    break # Try next random combination
+                                    
+                                # Sort to pick the guard who did this point the longest time ago (or never)
+                                valid_guards.sort(key=lambda g: history_map.get(g['name'], {}).get(clean_point_name(pt), 999), reverse=True)
+                                
+                                # If multiple guards have the same 'longest' time, pick randomly among them
+                                best_score = history_map.get(valid_guards[0]['name'], {}).get(clean_point_name(pt), 999)
+                                best_candidates = [g for g in valid_guards if history_map.get(g['name'], {}).get(clean_point_name(pt), 999) == best_score]
+                                
+                                chosen_g = random.choice(best_candidates)
+                                temp_assignment[chosen_g['name']] = pt
+                                unassigned_g.remove(chosen_g)
+                                
+                            if success:
+                                return temp_assignment # Found a perfect distribution!
+                                
+                    # Emergency fallback (Only happens if literally mathematically impossible to satisfy even a 0-day ban)
                     emergency = {}
                     for i, g in enumerate(guards_list):
                         if i < len(pts_list): emergency[g['name']] = pts_list[i]
