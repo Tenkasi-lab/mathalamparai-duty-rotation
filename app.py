@@ -219,7 +219,8 @@ if check_password():
     if not st.session_state["screenshot_mode"]:
         st.markdown(f"<div class='main-header'><div>🛡️ MATHALAMPARAI EXECUTIVE</div><div>🕒 {current_time}</div></div>", unsafe_allow_html=True)
 
-    receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "SATHYAJOTHY", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL"]
+    # --- THE FIX: ADDED ANJANA DEVI TO RECEPTIONISTS POOL ---
+    receptionists_pool = ["KAVITHA", "SATHYA JOTHY", "SATHYAJOTHY", "MUTHUVADIVU", "MUTHU VADIVU", "SUBHASHINI", "MERLIN NIRMALA", "MERLINNIRMALA", "PETCHIYAMMAL", "ANJANA DEVI", "ANJANADEVI"]
     wellness_specialists = ["BALASUBRAMANIAN", "BALA SUBRAMANIAN", "PONMARI", "POULSON"]
     supervisors_pool = ["INDIRAJITH", "DHILIP MOHAN", "DHILIPMOHAN", "RANJITH KUMAR", "RANJITHKUMAR"]
     regular_duty_points = ["1. MAIN GATE-1", "2. SECOND GATE", "3. CAR PARKING", "4. PATROLLING", "5. MAIN GATE-2", "6. DG POWER ROOM", "7. A BLOCK AREA", "8. B BLOCK AREA", "9. C BLOCK AREA", "10. CAR PARKING ENTRANCE", "11. CIVIL MAIN GATE", "12. NEW CANTEEN"]
@@ -264,7 +265,6 @@ if check_password():
                         if any(s in name for s in supervisors_pool): sups.append(name)
                         else: staff_on_duty.append({'id': i, 'name': name})
 
-        # --- THE FIX: SMART MISMATCH DETECTOR LAUNCHED ---
         current_sheet_leaves = set(week_offs + on_leave)
         
         db_active_names = set(shift_data[shift_data["Role"].isin(["GUARD", "WELLNESS", "RECEPTION", "SUPERVISOR"])]["Staff Name"].tolist())
@@ -276,11 +276,9 @@ if check_password():
         sheet_working_names = {s['name'] for s in staff_on_duty} | set(general_staff)
         for s in sups: sheet_working_names.add(s.replace(" (GEN)", "").strip())
 
-        # Smart Checks
         anyone_went_on_leave = any(name in current_sheet_leaves for name in db_active_names)
         anyone_returned_from_leave = any(name in sheet_working_names for name in db_leave_names)
         
-        # Sync ONLY if database is empty OR if someone's actual attendance state changed in the Google Sheet
         sync_needed = not db_already_calculated or anyone_went_on_leave or anyone_returned_from_leave
 
         if not sync_needed:
