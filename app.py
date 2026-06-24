@@ -144,24 +144,48 @@ if check_password():
             st.rerun()
     st.session_state["last_active"] = datetime.now()
     
+    # --- UPDATED: MOBILE OPTIMIZED SCREENSHOT MODE ---
     if st.session_state["screenshot_mode"]:
         st.markdown("""
             <style>
-            [data-testid="stSidebar"] {display: none;} header {display: none;}
+            [data-testid="stSidebar"] {display: none;} 
+            header {display: none !important;}
             .stApp {background-color: #f8fafc !important;}
+            
+            /* Remove extra margins at the top of Streamlit */
+            .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; max-width: 100% !important; }
+            
             .roster-card { background: white; border: 2px solid #0f172a; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: hidden;}
             .roster-header { background: #0f172a; color: white; text-align: center; padding: 15px; font-weight: 800; font-size: 18px;}
-            .roster-body { padding: 20px;}
-            .info-text { font-size: 15px; line-height: 1.6; border-bottom: 2px dashed #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;}
-            .roster-table { width: 100%; border-collapse: collapse; font-size: 14px;}
-            .roster-table th, .roster-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; color: #0f172a !important;}
+            .roster-body { padding: 15px;}
+            
+            /* Explicitly setting Dark Text Color so it doesn't vanish on white background */
+            .info-text { font-size: 14px; line-height: 1.5; border-bottom: 2px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; color: #0f172a !important;}
+            
+            .roster-table { width: 100%; border-collapse: collapse; font-size: 13px;}
+            .roster-table th, .roster-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; color: #0f172a !important;}
             .roster-table th { background: #f1f5f9; font-weight: bold; color: #334155 !important;}
             .vacant { color: #dc2626 !important; font-weight: bold; }
             .extra { background-color: #f8fafc; font-style: italic; }
-            .footer-card { margin-top: 15px; font-size: 13px; font-weight: bold;}
+            
+            /* Explicitly setting Dark Text Color for Footer */
+            .footer-card { margin-top: 10px; font-size: 12px; font-weight: bold; color: #0f172a !important;}
+            
+            /* MOBILE SCREEN optimizations */
+            @media (max-width: 600px) {
+                .block-container { padding-top: 0.2rem !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+                .roster-card { border-radius: 8px; margin: 0; border: 1px solid #0f172a; }
+                .roster-header { padding: 10px; font-size: 15px; }
+                .roster-body { padding: 10px; }
+                .info-text { font-size: 12px; margin-bottom: 8px; padding-bottom: 6px; }
+                .roster-table { font-size: 11px; }
+                .roster-table th, .roster-table td { padding: 4px; }
+                .footer-card { font-size: 10px; margin-top: 8px; }
+                div[data-testid="stVerticalBlock"] { gap: 0.2rem !important; }
+            }
             </style>
         """, unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1, 2, 1])
+        col1, col2, col3 = st.columns([1, 4, 1])
         with col2:
             if st.button("❌ EXIT SCREENSHOT MODE", use_container_width=True):
                 st.session_state["screenshot_mode"] = False
@@ -366,31 +390,27 @@ if check_password():
                 unassigned_guards.append(guard)
 
             if unassigned_guards:
-                # --- FIXED: SMART GREEDY RETRY LOGIC (100% RELIABLE 7-DAY RULE) ---
                 def assign_point_centric(guards_list, pts_list, target_ban=7):
                     for current_ban in range(target_ban, -1, -1):
-                        for attempt in range(500): # Try 500 different random combinations
+                        for attempt in range(500): 
                             temp_assignment = {}
                             available_pts = list(pts_list)
                             unassigned_g = list(guards_list)
-                            random.shuffle(available_pts) # Add randomness to find better matches
+                            random.shuffle(available_pts) 
                             
                             success = True
                             for pt in available_pts:
                                 if not unassigned_g:
-                                    break # Out of guards. The remaining points will stay vacant.
+                                    break 
                                     
-                                # Find guards who haven't done this point within 'current_ban' days
                                 valid_guards = [g for g in unassigned_g if history_map.get(g['name'], {}).get(clean_point_name(pt), 999) > current_ban]
                                 
                                 if not valid_guards:
                                     success = False
-                                    break # Try next random combination
+                                    break 
                                     
-                                # Sort to pick the guard who did this point the longest time ago (or never)
                                 valid_guards.sort(key=lambda g: history_map.get(g['name'], {}).get(clean_point_name(pt), 999), reverse=True)
                                 
-                                # If multiple guards have the same 'longest' time, pick randomly among them
                                 best_score = history_map.get(valid_guards[0]['name'], {}).get(clean_point_name(pt), 999)
                                 best_candidates = [g for g in valid_guards if history_map.get(g['name'], {}).get(clean_point_name(pt), 999) == best_score]
                                 
@@ -399,9 +419,8 @@ if check_password():
                                 unassigned_g.remove(chosen_g)
                                 
                             if success:
-                                return temp_assignment # Found a perfect distribution!
+                                return temp_assignment 
                                 
-                    # Emergency fallback (Only happens if literally mathematically impossible to satisfy even a 0-day ban)
                     emergency = {}
                     for i, g in enumerate(guards_list):
                         if i < len(pts_list): emergency[g['name']] = pts_list[i]
@@ -482,7 +501,7 @@ if check_password():
                     html_rows += f"<tr><td>{row['Point']}</td><td class='{style_class}'>{name}</td></tr>"
             card_html = f"""
             <div class="roster-card">
-                <div class="roster-header">🛡️ MATHALAMPARAI ROSTER <br><span style="font-size: 15px; font-weight: normal;">{selected_date.strftime("%d %b %Y")} | {target_shift}</span></div>
+                <div class="roster-header">🛡️ MATHALAMPARAI ROSTER <br><span style="font-size: 14px; font-weight: normal;">{selected_date.strftime("%d %b %Y")} | {target_shift}</span></div>
                 <div class="roster-body"><div class="info-text"><b>👨‍💼 Supervisor:</b> {sups_text}<br><b>👩‍💼 Reception:</b> {recep_text}<br><b>⚕️ Wellness:</b> {wellness_text}</div>
                     <table class="roster-table"><tr><th>📍 Duty Point</th><th>💂 Assigned Staff</th></tr>{html_rows}</table>
                     <div class="footer-card"><span style="color:#dc2626;">🏖️ Week Off:</span> {wo_names}<br><span style="color:#dc2626;">🏥 On Leave:</span> {ol_names}</div>
